@@ -1,0 +1,3 @@
+[submodule "bomberman_rl"]
+	path = bomberman_rl
+	url = https://github.com/ukoethe/bomberman_rl.git
