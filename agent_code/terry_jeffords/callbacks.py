@@ -1,9 +1,11 @@
 import os
 import pickle
 import random
+from collections import deque
 
 import numpy as np
 
+from agent_code.terry_jeffords.model import DQN
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
 
@@ -22,13 +24,20 @@ def setup(self):
 
     :param self: This object is passed to all callbacks and you can set arbitrary values.
     """
-    if self.train or not os.path.isfile("my-saved-model.pt"):
+    # Fixed length FIFO queues to avoid repeating the same actions
+    self.bomb_history = deque([], 5)
+    self.coordinate_history = deque([], 20)
+    # While this timer is positive, agent will not hunt/attack opponents
+    self.ignore_others_timer = 0
+
+    if self.train or not os.path.isfile("terry-jeffords-model.pt"):
         self.logger.info("Setting up model from scratch.")
         weights = np.random.rand(len(ACTIONS))
         self.model = weights / weights.sum()
+        self.test_model = DQN(1734, 6)
     else:
         self.logger.info("Loading model from saved state.")
-        with open("my-saved-model.pt", "rb") as file:
+        with open("terry-jeffords-model.pt", "rb") as file:
             self.model = pickle.load(file)
 
 
@@ -42,6 +51,58 @@ def act(self, game_state: dict) -> str:
     :return: The action to take as a string.
     """
     # todo Exploration vs exploitation
+    self.logger.info('Picking action according to rule set')
+
+    features = state_to_features(game_state)
+    if game_state is not None:
+        # Gather information about the game state
+        # used to check wall, crate, free tile
+        arena = game_state['field']
+        # position of my agent and other agents
+        _, score, bombs_left, (x, y) = game_state['self']
+        # self.s = 15*(int(x)-1)+(int(y)-1)  #current state for q learning
+        others = [(x, y) for (n, s, b, (x, y)) in game_state['others']]
+        # bomb
+        bombs = game_state['bombs']
+        bomb_xys = [(x, y) for ((x, y), t) in bombs]
+        bomb_map = np.ones(arena.shape) * 5
+        for (xb, yb), t in bombs:
+            for (i, j) in [(xb + h, yb) for h in range(-3, 4)] + [(xb, yb + h) for h in range(-3, 4)]:
+                if (0 < i < bomb_map.shape[0]) and (0 < j < bomb_map.shape[1]):
+                    bomb_map[i, j] = min(bomb_map[i, j], t)
+        # coin
+        coins = game_state['coins']
+
+        # If agent has been in the same location three times recently, it's a loop
+        if self.coordinate_history.count((x, y)) > 2:
+            self.ignore_others_timer = 5
+        else:
+            self.ignore_others_timer -= 1
+        self.coordinate_history.append((x, y))
+
+        # find valid actions
+        directions = [(x, y), (x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+        valid_tiles, valid_actions = [], []
+        for d in directions:
+            if ((arena[d] == 0) and
+                    (game_state['explosion_map'][d] <= 1) and
+                    (bomb_map[d] > 0) and
+                    (not d in others) and
+                    (not d in bomb_xys)):
+                valid_tiles.append(d)
+        if (x - 1, y) in valid_tiles: valid_actions.append('LEFT')
+        if (x + 1, y) in valid_tiles: valid_actions.append('RIGHT')
+        if (x, y - 1) in valid_tiles: valid_actions.append('UP')
+        if (x, y + 1) in valid_tiles: valid_actions.append('DOWN')
+        if (x, y) in valid_tiles: valid_actions.append('WAIT')
+        # Disallow the BOMB action if agent dropped a bomb in the same spot recently
+        if (bombs_left > 0) and (x, y) not in self.bomb_history: valid_actions.append('BOMB')
+        self.logger.debug(f'Valid actions: {valid_actions}')
+
+    # model_input = torch.from_numpy(features).float()
+
+    # model_output = self.testmodel(model_input)
+
     random_prob = .1
     if self.train and random.random() < random_prob:
         self.logger.debug("Choosing action purely at random.")
