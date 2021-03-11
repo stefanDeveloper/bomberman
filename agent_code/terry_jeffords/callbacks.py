@@ -5,6 +5,8 @@ from collections import deque
 
 import numpy as np
 
+import torch
+
 from agent_code.terry_jeffords.model import DQN
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
@@ -52,6 +54,7 @@ def act(self, game_state: dict) -> str:
     """
     # todo Exploration vs exploitation
     self.logger.info('Picking action according to rule set')
+    allowed_move_i = np.zeros(len(ACTIONS))
 
     features = state_to_features(game_state)
     if game_state is not None:
@@ -83,6 +86,7 @@ def act(self, game_state: dict) -> str:
         # find valid actions
         directions = [(x, y), (x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
         valid_tiles, valid_actions = [], []
+
         for d in directions:
             if ((arena[d] == 0) and
                     (game_state['explosion_map'][d] <= 1) and
@@ -90,18 +94,37 @@ def act(self, game_state: dict) -> str:
                     (not d in others) and
                     (not d in bomb_xys)):
                 valid_tiles.append(d)
-        if (x - 1, y) in valid_tiles: valid_actions.append('LEFT')
-        if (x + 1, y) in valid_tiles: valid_actions.append('RIGHT')
-        if (x, y - 1) in valid_tiles: valid_actions.append('UP')
-        if (x, y + 1) in valid_tiles: valid_actions.append('DOWN')
-        if (x, y) in valid_tiles: valid_actions.append('WAIT')
+        if (x - 1, y) in valid_tiles:
+            valid_actions.append('LEFT')
+            allowed_move_i[3] = 1
+        if (x + 1, y) in valid_tiles:
+            valid_actions.append('RIGHT')
+            allowed_move_i[1] = 1
+        if (x, y - 1) in valid_tiles:
+            valid_actions.append('UP')
+            allowed_move_i[0] = 1
+        if (x, y + 1) in valid_tiles:
+            valid_actions.append('DOWN')
+            allowed_move_i[2] = 1
+        if (x, y) in valid_tiles:
+            valid_actions.append('WAIT')
         # Disallow the BOMB action if agent dropped a bomb in the same spot recently
         if (bombs_left > 0) and (x, y) not in self.bomb_history: valid_actions.append('BOMB')
         self.logger.debug(f'Valid actions: {valid_actions}')
 
-    # model_input = torch.from_numpy(features).float()
+    allowed_moves = np.array(allowed_move_i, dtype=bool)
 
-    # model_output = self.testmodel(model_input)
+    features = state_to_features(game_state)
+    model_input = torch.from_numpy(features).float()
+
+    model_output = self.test_model(model_input)
+    # index of most likely allowed move
+    outindex = torch.argmax(model_output[allowed_moves])
+
+    allowed_actions = []
+    for i in range(len(ACTIONS)):
+        if allowed_moves[i]:
+            allowed_actions.append(ACTIONS[i])
 
     random_prob = .1
     if self.train and random.random() < random_prob:
@@ -110,7 +133,8 @@ def act(self, game_state: dict) -> str:
         return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
 
     self.logger.debug("Querying model for action.")
-    return np.random.choice(ACTIONS, p=self.model)
+    #return np.random.choice(ACTIONS, p=self.model)
+    return allowed_actions[outindex]
 
 
 def state_to_features(game_state: dict) -> np.array:
@@ -131,9 +155,32 @@ def state_to_features(game_state: dict) -> np.array:
     if game_state is None:
         return None
 
+    field_channel = np.array(game_state["field"])
+    field_shape = field_channel.shape
+    # create new "maps" for self, others, bombs, coins and explosion_map
+    # self (only has one entry)
+    self_channel = np.zeros(field_shape)
+    self_channel[game_state["self"][3]] = 1
+
+    # others
+    others_channel = np.zeros(field_shape)
+    for i in game_state["others"]:
+        others_channel[i[3]] = -1
+    # bombs
+    bombs_channel = np.zeros(field_shape)
+    for i in game_state["bombs"]:
+        bombs_channel[i[0]] = i[1]
+
+    # coins
+    coins_channel = np.zeros(field_shape)
+    for i in game_state["coins"]:
+        coins_channel[i] = 1
+
+    # explosion_map
+    explosion_channel = np.array(game_state["explosion_map"])
     # For example, you could construct several channels of equal shape, ...
-    channels = []
-    channels.append(...)
+    channels = [field_channel, self_channel, others_channel, bombs_channel, coins_channel, explosion_channel]
+    # channels.append(...)
     # concatenate them as a feature tensor (they must have the same shape), ...
     stacked_channels = np.stack(channels)
     # and return them as a vector

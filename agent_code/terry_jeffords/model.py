@@ -19,3 +19,4 @@ class DQN(nn.Module):
     def forward(self, x):
         logits = self.model_sequence(x)
         return logits
+
