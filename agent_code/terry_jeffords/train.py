@@ -3,6 +3,7 @@ from collections import namedtuple, deque
 from typing import List
 
 import numpy as np
+import torch
 
 import events as e
 import settings
@@ -14,7 +15,7 @@ Transition = namedtuple('Transition',
 # Hyper parameters -- DO modify
 TRANSITION_HISTORY_SIZE = 3  # keep only ... last transitions
 RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
-EXPLORATION_RATE = 0.1
+EXPLORATION_RATE = 0.4
 
 # Events
 # Defined by ICEC 2019
@@ -36,6 +37,10 @@ def setup_training(self):
     """
     # Example: Setup an array that will note transition tuples
     # (s, a, r, s')
+    self.training_states = []
+    self.training_actions = []
+    self.training_next_states = []
+    self.training_rewards = []
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
     self.exploration_rate = EXPLORATION_RATE
 
@@ -129,6 +134,12 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         Transition(state_to_features_hybrid(old_game_state), self_action, state_to_features_hybrid(new_game_state),
                    reward_from_events(self, events)))
 
+    # state_to_features is defined in callbacks.py
+    self.training_states.append(state_to_features_hybrid(old_game_state))
+    self.training_actions.append(self_action)
+    self.training_next_states.append(state_to_features_hybrid(new_game_state))
+    self.training_rewards.append(reward_from_events(self, events))
+
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
     """
@@ -151,8 +162,31 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.transitions.append(
         Transition(state_to_features_hybrid(last_game_state), last_action, None, reward_from_events(self, events)))
 
+    self.logger.info(f"Training_rewards: {self.training_rewards}")
+    self.logger.info(f"Training_states: {self.training_states}")
+    training_states = torch.tensor(self.training_states[1:]).float()
+    training_next_states = torch.tensor(self.training_next_states[1:]).float()
+    training_rewards = torch.tensor(self.training_rewards[1:]).float()
+
+    # maximum predicted reward for state s(t)
+    q_states_max = torch.max(self.model.forward(training_states), dim=1)[0]
+    # maximum predicted reward for state s(t+1)
+    q_next_states_max = torch.max(self.model.forward(training_next_states),
+                                  dim=1)[0]
+    # what q_states_max should be
+    q_target = training_rewards + self.model.gamma * q_next_states_max
+    loss = self.model.loss(q_target, q_states_max)
+    loss.backward()
+    self.model.optimizer.step()
+
+    # Empty training data
+    self.training_states = []
+    self.training_actions = []
+    self.training_next_states = []
+    self.training_rewards = []
+
     # Store the model
-    with open("my-saved-model.pt", "wb") as file:
+    with open("terry-jeffords-model.pt", "wb") as file:
         pickle.dump(self.model, file)
 
 

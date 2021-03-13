@@ -61,7 +61,7 @@ def act(self, game_state: dict) -> str:
 
     self.logger.info(f'Selected action: {action}')
 
-    return action
+    return ACTIONS[action]
 
 
 def state_to_features_hybrid(game_state: dict) -> np.array:
@@ -103,8 +103,6 @@ def state_to_features_hybrid(game_state: dict) -> np.array:
     hybrid_matrix[:, :, 4] = np.where(game_state["field"] == -1, 1, 0)
 
     final_vector = np.append(hybrid_matrix.reshape(-1), (game_state["self"][3]))
-
-    print(f'Feature has shape of {final_vector.shape}')
 
     return final_vector
 

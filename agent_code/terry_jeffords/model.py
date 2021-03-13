@@ -6,6 +6,9 @@ import torch.nn.functional as F
 
 class DQN(nn.Module):
 
+    gamma = 1.0
+    learning_rate = 0.003
+
     def __init__(self, dim_in, dim_out):
         super(DQN, self).__init__()
         self.model_sequence = nn.Sequential(
@@ -16,6 +19,9 @@ class DQN(nn.Module):
             nn.Linear(512, dim_out),
             # nn.ReLU()
         )
+        self.loss = nn.MSELoss()  # default: nn.MSELoss()
+        # default: optim.Adam(self.parameters(), self.learning_rate)
+        self.optimizer = optim.Adam(self.parameters(), self.learning_rate)
 
     def forward(self, x):
         logits = self.model_sequence(x)
