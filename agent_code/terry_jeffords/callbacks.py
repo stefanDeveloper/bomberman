@@ -102,16 +102,10 @@ def state_to_features_hybrid(game_state: dict) -> np.array:
     # walls
     hybrid_matrix[:, :, 4] = np.where(game_state["field"] == -1, 1, 0)
 
-    # explosion_map
-    # explosion_channel = np.array(game_state["explosion_map"])
-    # For example, you could construct several channels of equal shape, ...
-    # channels = [field_channel, self_channel, others_channel, bombs_channel, coins_channel, explosion_channel]
-    # channels.append(...)
-    # concatenate them as a feature tensor (they must have the same shape), ...
-    # stacked_channels = np.stack(channels)
-    # and return them as a vector
     final_vector = np.append(hybrid_matrix.reshape(-1), (game_state["self"][3]))
+
     print(f'Feature has shape of {final_vector.shape}')
+
     return final_vector
 
 
@@ -160,12 +154,13 @@ def state_to_features_icaart(game_state: dict) -> np.array:
     # danger_channel
     danger_channel = np.zeros(field_shape)
     danger_channel = np.where(game_state["explosion_map"] > 0, settings.BOMB_TIMER / game_state["explosion_map"],
-                              field_channel)
-    # For example, you could construct several channels of equal shape, ...
+                              danger_channel)
+
+    # Sum up
     channels = [field_channel, self_channel, others_channel, danger_channel, coins_channel]
-    # channels.append(...)
-    # concatenate them as a feature tensor (they must have the same shape), ...
+
     final_vector = np.stack(channels).reshape(-1)
+
     print(f'Feature has shape of {final_vector.shape}')
-    # and return them as a vector
+
     return final_vector
