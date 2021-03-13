@@ -3,11 +3,13 @@ import pickle
 import random
 
 import numpy as np
-
+import torch
 
 import settings
+from agent_code.terry_jeffords.model import DQN
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
+
 
 def setup(self):
     """
@@ -25,8 +27,7 @@ def setup(self):
     """
     if self.train or not os.path.isfile("terry-jeffords-model.pt"):
         self.logger.info("Setting up model from scratch.")
-        weights = np.random.rand(len(ACTIONS))
-        self.model = weights / weights.sum()
+        self.model = DQN(1447, 6)
     else:
         self.logger.info("Loading model from saved state.")
         with open("terry-jeffords-model.pt", "rb") as file:
@@ -42,21 +43,25 @@ def act(self, game_state: dict) -> str:
     :param game_state: The dictionary that describes everything on the board.
     :return: The action to take as a string.
     """
-    # todo Exploration vs exploitation
+    # TODO Exploration vs exploitation
     self.logger.info('Picking action according to rule set')
 
-    features = state_to_features_hybrid(game_state)
-
-    random_prob = .1
-    if self.train and random.random() < random_prob:
+    if self.train and random.random() < self.exploration_rate:
         self.logger.debug("Choosing action purely at random.")
+        self.logger.debug(f'Exploration rate: {self.exploration_rate}')
         # 80%: walk in any direction. 10% wait. 10% bomb.
         return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
 
     self.logger.debug("Querying model for action.")
 
-    # TODO Call get action
-    return np.random.choice(ACTIONS, p=self.model)
+    features = state_to_features_hybrid(game_state)
+    features_tensor = torch.from_numpy(features).float()
+    predicted_reward = self.model(features_tensor)
+    action = torch.argmax(predicted_reward)
+
+    self.logger.info(f'Selected action: {action}')
+
+    return action
 
 
 def state_to_features_hybrid(game_state: dict) -> np.array:
@@ -77,15 +82,15 @@ def state_to_features_hybrid(game_state: dict) -> np.array:
     field_shape = game_state["field"].shape
 
     # Create Hybrid Matrix with field shape x vector of size 5 to encode field state
-    hybrid_matrix = np.zeros((field_shape) + (5,))
+    hybrid_matrix = np.zeros(field_shape + (5,), dtype=np.double)
 
     # others
     for i in game_state["others"]:
-        hybrid_matrix[i[3], 0] = -1
+        hybrid_matrix[i[3], 0] = 1
 
     # bombs
     for i in game_state["bombs"]:
-        hybrid_matrix[i[0], 1] = i[1]
+        hybrid_matrix[i[0], 1] = 1
 
     # coins
     for i in game_state["coins"]:
@@ -106,6 +111,7 @@ def state_to_features_hybrid(game_state: dict) -> np.array:
     # stacked_channels = np.stack(channels)
     # and return them as a vector
     final_vector = np.append(hybrid_matrix.reshape(-1), (game_state["self"][3]))
+    print(f'Feature has shape of {final_vector.shape}')
     return final_vector
 
 
@@ -160,8 +166,6 @@ def state_to_features_icaart(game_state: dict) -> np.array:
     # channels.append(...)
     # concatenate them as a feature tensor (they must have the same shape), ...
     final_vector = np.stack(channels).reshape(-1)
-    print(final_vector.shape)
+    print(f'Feature has shape of {final_vector.shape}')
     # and return them as a vector
     return final_vector
-
-

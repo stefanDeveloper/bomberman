@@ -1,13 +1,9 @@
 import pickle
-import random
 from collections import namedtuple, deque
 from typing import List
 
 import events as e
-from .callbacks import state_to_features
-
-# This is only an example!
-from .model import DQN
+from agent_code.terry_jeffords.callbacks import state_to_features_hybrid
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -15,35 +11,15 @@ Transition = namedtuple('Transition',
 # Hyper parameters -- DO modify
 TRANSITION_HISTORY_SIZE = 3  # keep only ... last transitions
 RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
+EXPLORATION_RATE = 0.1
 
 # Events
-PLACEHOLDER_EVENT = "PLACEHOLDER"
-
-class TerryJeffords:
-    memory_size: int = 5000
-
-    def __init__(self, features):
-        self.model = DQN(1734, 6)
-        self.exploration_rate = 1.0
-        self.transitions = deque(maxlen=self.memory_size)
-        self.features = features
-
-    def get_action(self, game_state : dict):
-        # TODO Get Action
-        pass
-
-    def experience_replay(self):
-        # TODO Do experience replay
-        pass
-
-    def prioritized_experience_replay(self):
-        # TODO Do experience replay
-        pass
-
-    def memory(self):
-        # TODO Remember state
-        pass
-
+LAST_MAN_STANDING = "LAST_MAN_STANDING"
+CLOSER_TO_ENEMY = "CLOSER_TO_ENEMY"
+CLOSEST_TO_ENEMY = "CLOSEST_TO_ENEMY"
+FARTHER_TO_ENEMY = "FARTHER_TO_ENEMY"
+DANGER_ZONE_BOMB = "DANGER_ZONE_BOMB"
+SAFE_CELL_BOMB = "SAFE_CELL_BOMB"
 
 def setup_training(self):
     """
@@ -56,7 +32,7 @@ def setup_training(self):
     # Example: Setup an array that will note transition tuples
     # (s, a, r, s')
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
-
+    self.exploration_rate = EXPLORATION_RATE
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
     """
@@ -79,10 +55,10 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
 
     # Idea: Add your own events to hand out rewards
     if ...:
-        events.append(PLACEHOLDER_EVENT)
+        events.append(LAST_MAN_STANDING)
 
     # state_to_features is defined in callbacks.py
-    self.transitions.append(Transition(state_to_features(old_game_state), self_action, state_to_features(new_game_state), reward_from_events(self, events)))
+    self.transitions.append(Transition(state_to_features_hybrid(old_game_state), self_action, state_to_features_hybrid(new_game_state), reward_from_events(self, events)))
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
@@ -98,7 +74,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     :param self: The same object that is passed to all of your callbacks.
     """
     self.logger.debug(f'Encountered event(s) {", ".join(map(repr, events))} in final step')
-    self.transitions.append(Transition(state_to_features(last_game_state), last_action, None, reward_from_events(self, events)))
+    self.transitions.append(Transition(state_to_features_hybrid(last_game_state), last_action, None, reward_from_events(self, events)))
 
     # Store the model
     with open("my-saved-model.pt", "wb") as file:
@@ -114,8 +90,15 @@ def reward_from_events(self, events: List[str]) -> int:
     """
     game_rewards = {
         e.COIN_COLLECTED: 1,
-        e.KILLED_OPPONENT: 5,
-        PLACEHOLDER_EVENT: -.1  # idea: the custom event is bad
+        e.KILLED_OPPONENT: 1,
+        e.KILLED_SELF: -0.5,
+        e.CRATE_DESTROYED: 0.1,
+        LAST_MAN_STANDING: 1,
+        CLOSER_TO_ENEMY: 0.002,
+        CLOSEST_TO_ENEMY: 0.1,
+        FARTHER_TO_ENEMY: -0.002,
+        DANGER_ZONE_BOMB: -0.000666,
+        SAFE_CELL_BOMB: 0.002,
     }
     reward_sum = 0
     for event in events:
