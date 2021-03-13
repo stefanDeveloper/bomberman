@@ -26,17 +26,11 @@ def setup(self):
 
     :param self: This object is passed to all callbacks and you can set arbitrary values.
     """
-    # Fixed length FIFO queues to avoid repeating the same actions
-    self.bomb_history = deque([], 5)
-    self.coordinate_history = deque([], 20)
-    # While this timer is positive, agent will not hunt/attack opponents
-    self.ignore_others_timer = 0
-
     if self.train or not os.path.isfile("terry-jeffords-model.pt"):
         self.logger.info("Setting up model from scratch.")
         weights = np.random.rand(len(ACTIONS))
         self.model = weights / weights.sum()
-        self.test_model = DQN(1734, 6)
+        #self.test_model = DQN(1734, 6)
     else:
         self.logger.info("Loading model from saved state.")
         with open("terry-jeffords-model.pt", "rb") as file:
@@ -54,77 +48,8 @@ def act(self, game_state: dict) -> str:
     """
     # todo Exploration vs exploitation
     self.logger.info('Picking action according to rule set')
-    allowed_move_i = np.zeros(len(ACTIONS))
 
     features = state_to_features(game_state)
-    if game_state is not None:
-        # Gather information about the game state
-        # used to check wall, crate, free tile
-        arena = game_state['field']
-        # position of my agent and other agents
-        _, score, bombs_left, (x, y) = game_state['self']
-        # self.s = 15*(int(x)-1)+(int(y)-1)  #current state for q learning
-        others = [(x, y) for (n, s, b, (x, y)) in game_state['others']]
-        # bomb
-        bombs = game_state['bombs']
-        bomb_xys = [(x, y) for ((x, y), t) in bombs]
-        bomb_map = np.ones(arena.shape) * 5
-        for (xb, yb), t in bombs:
-            for (i, j) in [(xb + h, yb) for h in range(-3, 4)] + [(xb, yb + h) for h in range(-3, 4)]:
-                if (0 < i < bomb_map.shape[0]) and (0 < j < bomb_map.shape[1]):
-                    bomb_map[i, j] = min(bomb_map[i, j], t)
-        # coin
-        coins = game_state['coins']
-
-        # If agent has been in the same location three times recently, it's a loop
-        if self.coordinate_history.count((x, y)) > 2:
-            self.ignore_others_timer = 5
-        else:
-            self.ignore_others_timer -= 1
-        self.coordinate_history.append((x, y))
-
-        # find valid actions
-        directions = [(x, y), (x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
-        valid_tiles, valid_actions = [], []
-
-        for d in directions:
-            if ((arena[d] == 0) and
-                    (game_state['explosion_map'][d] <= 1) and
-                    (bomb_map[d] > 0) and
-                    (not d in others) and
-                    (not d in bomb_xys)):
-                valid_tiles.append(d)
-        if (x - 1, y) in valid_tiles:
-            valid_actions.append('LEFT')
-            allowed_move_i[3] = 1
-        if (x + 1, y) in valid_tiles:
-            valid_actions.append('RIGHT')
-            allowed_move_i[1] = 1
-        if (x, y - 1) in valid_tiles:
-            valid_actions.append('UP')
-            allowed_move_i[0] = 1
-        if (x, y + 1) in valid_tiles:
-            valid_actions.append('DOWN')
-            allowed_move_i[2] = 1
-        if (x, y) in valid_tiles:
-            valid_actions.append('WAIT')
-        # Disallow the BOMB action if agent dropped a bomb in the same spot recently
-        if (bombs_left > 0) and (x, y) not in self.bomb_history: valid_actions.append('BOMB')
-        self.logger.debug(f'Valid actions: {valid_actions}')
-
-    allowed_moves = np.array(allowed_move_i, dtype=bool)
-
-    features = state_to_features(game_state)
-    model_input = torch.from_numpy(features).float()
-
-    model_output = self.test_model(model_input)
-    # index of most likely allowed move
-    outindex = torch.argmax(model_output[allowed_moves])
-
-    allowed_actions = []
-    for i in range(len(ACTIONS)):
-        if allowed_moves[i]:
-            allowed_actions.append(ACTIONS[i])
 
     random_prob = .1
     if self.train and random.random() < random_prob:
@@ -133,6 +58,8 @@ def act(self, game_state: dict) -> str:
         return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
 
     self.logger.debug("Querying model for action.")
+
+    # TODO Call get action
     #return np.random.choice(ACTIONS, p=self.model)
     return allowed_actions[outindex]
 
@@ -154,34 +81,67 @@ def state_to_features(game_state: dict) -> np.array:
     # This is the dict before the game begins and after it ends
     if game_state is None:
         return None
+    # TODO Have a nice feature representation
+    # We want to represent the state as vector.
+    # For each cell on the field we define a vector with 5 entries, each either 0 or 1
+    # [0, 0, 0, 0, 0] --> free
+    # [1, 0, 0, 0, 0] --> stone
+    # [0, 1, 0, 0, 0] --> crate
+    # [0, 0, 1, 0, 0] --> coin
+    # [0, 0, 0, 1, 0] --> bomb
+    # [0, 0, 0, 0, 1] --> fire
+    # in principle with this encoding multiple cases could happen at the same time
+    # e.g. [0, 0, 0, 1, 1] --> bomb and fire
+    # but in our implementation of the game this is not relevant
+    # because they are a combination of one-hot and binary map
+    # they are called hybrid vectors
 
-    field_channel = np.array(game_state["field"])
-    field_shape = field_channel.shape
-    # create new "maps" for self, others, bombs, coins and explosion_map
-    # self (only has one entry)
-    self_channel = np.zeros(field_shape)
-    self_channel[game_state["self"][3]] = 1
+    # initialize empty field
+    # note: in the game we have a field of 17x17, but the borders are always
+    # stone so we reduce the dimension to 15x15
+    hybrid_vectors = np.zeros((15, 15, 5), dtype=int)
 
-    # others
-    others_channel = np.zeros(field_shape)
-    for i in game_state["others"]:
-        others_channel[i[3]] = -1
-    # bombs
-    bombs_channel = np.zeros(field_shape)
-    for i in game_state["bombs"]:
-        bombs_channel[i[0]] = i[1]
+    # check where there are stones on the field
+    # just use the field without the borders (1:-1)
+    # set the first entry in the vector to 1
+    hybrid_vectors[np.where(game_state['field'][1:-1, 1:-1] == -1), 0] = 1
 
-    # coins
-    coins_channel = np.zeros(field_shape)
-    for i in game_state["coins"]:
-        coins_channel[i] = 1
+    # check where there are crates
+    # set the second entry in the vector to 1
+    hybrid_vectors[np.where(game_state['field'][1:-1, 1:-1] == 1), 1] = 1
 
-    # explosion_map
-    explosion_channel = np.array(game_state["explosion_map"])
-    # For example, you could construct several channels of equal shape, ...
-    channels = [field_channel, self_channel, others_channel, bombs_channel, coins_channel, explosion_channel]
-    # channels.append(...)
-    # concatenate them as a feature tensor (they must have the same shape), ...
-    stacked_channels = np.stack(channels)
-    # and return them as a vector
-    return stacked_channels.reshape(-1)
+    # check where free coins are
+    # set the third entry in the vector to 1
+    # user np.moveaxis to transform list of tuples in numpy array
+    # https://stackoverflow.com/questions/42537956/slice-numpy-array-using-list-of-coordinates
+    # -1 in coordintaes because we left out the border
+    coin_coords = np.moveaxis(np.array(game_state['coins']), -1, 0)
+    hybrid_vectors[coin_coords[0] - 1, coin_coords[1] - 1, 2] = 1
+
+    # check where bombs are
+    # set the fourth entry in the vector to 1
+    # discard the time since this can be learned by the model because we
+    # use a LSTM network
+    bomb_coords = np.array([[bomb[0][0], bomb[0][1], bomb[1]] for bomb in game_state['bombs']]).T
+    hybrid_vectors[bomb_coords[0] - 1, bomb_coords[1] - 1, 3] = bomb_coords[2]
+
+    # check where fire is
+    # set the fifth entry in the vector to 1
+    hybrid_vectors[:, :, 4] = game_state['explosion_map'][1:-1, 1:-1]
+
+    # flatten 3D array to 1D vector
+    hyb_vec = hybrid_vectors.flatten()
+
+    # add enemy coords and their bomb boolean as additional entries at the end
+    # non-existing enemies have -1 at each position as default
+    for i in range(3):
+        if len(game_state['others']) > i:
+            enemy = game_state['others'][i]
+            hyb_vec = np.append(hyb_vec, [enemy[3][0], enemy[3][1], int(enemy[2])])
+        else:
+            hyb_vec = np.append(hyb_vec, [-1, -1, -1])
+
+    # add own position and availability of bomb as 3 additional entries at the end
+    hyb_vec = np.append(hyb_vec, [game_state['self'][3][0], game_state['self'][3][1], int(game_state['self'][2])])
+
+    return hyb_vec  # len(hyb_vec) = (15 x 15 x 5) + (4 x 3) = 1137

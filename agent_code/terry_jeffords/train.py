@@ -7,6 +7,8 @@ import events as e
 from .callbacks import state_to_features
 
 # This is only an example!
+from .model import DQN
+
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
@@ -16,6 +18,31 @@ RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
+
+class TerryJeffords:
+    memory_size: int = 5000
+
+    def __init__(self, features):
+        self.model = DQN(1734, 6)
+        self.exploration_rate = 1.0
+        self.transitions = deque(maxlen=self.memory_size)
+        self.features = features
+
+    def get_action(self, game_state : dict):
+        # TODO Get Action
+        pass
+
+    def experience_replay(self):
+        # TODO Do experience replay
+        pass
+
+    def prioritized_experience_replay(self):
+        # TODO Do experience replay
+        pass
+
+    def memory(self):
+        # TODO Remember state
+        pass
 
 
 def setup_training(self):
