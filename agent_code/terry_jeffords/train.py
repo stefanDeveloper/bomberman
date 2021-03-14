@@ -7,7 +7,7 @@ import torch
 
 import events as e
 import settings
-from agent_code.terry_jeffords.callbacks import state_to_features_hybrid
+from agent_code.terry_jeffords.callbacks import state_to_features_hybrid, ACTIONS
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -15,7 +15,7 @@ Transition = namedtuple('Transition',
 # Hyper parameters -- DO modify
 TRANSITION_HISTORY_SIZE = 3  # keep only ... last transitions
 RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
-EXPLORATION_RATE = 0.4
+EXPLORATION_RATE = 1.0
 
 # Events
 # Defined by ICEC 2019
@@ -25,6 +25,7 @@ CLOSEST_TO_ENEMY = "CLOSEST_TO_ENEMY"
 FARTHER_TO_ENEMY = "FARTHER_TO_ENEMY"
 DANGER_ZONE_BOMB = "DANGER_ZONE_BOMB"
 SAFE_CELL_BOMB = "SAFE_CELL_BOMB"
+ALREADY_VISITED_EVENT = "ALREADY_VISITED_EVENT"
 
 
 def setup_training(self):
@@ -43,6 +44,12 @@ def setup_training(self):
     self.training_rewards = []
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
     self.exploration_rate = EXPLORATION_RATE
+
+    self.visited = np.zeros((17, 17))
+    self.visited_before = np.zeros((17, 17))
+
+    self.EPS_MIN = 0.01
+    self.EPS_DEC = 0.996
 
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
@@ -129,6 +136,14 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         events.append(SAFE_CELL_BOMB)
         self.logger.debug(f'Add game event {SAFE_CELL_BOMB} in step {new_game_state["step"]}')
 
+    if self.visited_before[pos_current[0]][pos_current[1]] == 1:
+        events.append(ALREADY_VISITED_EVENT)
+
+    self.visited_before = self.visited
+
+    self.visited = np.zeros((17, 17))
+    self.visited[pos_current[0]][pos_current[1]] = 1
+
     # state_to_features is defined in callbacks.py
     self.transitions.append(
         Transition(state_to_features_hybrid(old_game_state), self_action, state_to_features_hybrid(new_game_state),
@@ -164,17 +179,22 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
 
     self.logger.info(f"Training_rewards: {self.training_rewards}")
     self.logger.info(f"Training_states: {self.training_states}")
+
     training_states = torch.tensor(self.training_states[1:]).float()
     training_next_states = torch.tensor(self.training_next_states[1:]).float()
     training_rewards = torch.tensor(self.training_rewards[1:]).float()
+    training_actions = self.training_actions[1:]
 
-    # maximum predicted reward for state s(t)
-    q_states_max = torch.max(self.model.forward(training_states), dim=1)[0]
-    # maximum predicted reward for state s(t+1)
+    action_indices = torch.zeros((training_states.shape[0], len(ACTIONS))).bool()
+
+    for i in range(len(training_actions)):
+        action_indices[i][ACTIONS.index(training_actions[i])] = True
+
+    q_states_max = torch.masked_select(self.model.forward(training_states), action_indices)
     q_next_states_max = torch.max(self.model.forward(training_next_states),
                                   dim=1)[0]
-    # what q_states_max should be
     q_target = training_rewards + self.model.gamma * q_next_states_max
+    #print(q_target)
     loss = self.model.loss(q_target, q_states_max)
     loss.backward()
     self.model.optimizer.step()
@@ -185,6 +205,12 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.training_next_states = []
     self.training_rewards = []
 
+    self.visited = np.zeros((17, 17))
+    self.visited_before = np.zeros((17, 17))
+
+    self.exploration_rate = self.exploration_rate * self.EPS_DEC if self.exploration_rate > \
+                                                                    self.EPS_MIN else self.EPS_MIN
+    #print(self.exploration_rate)
     # Store the model
     with open("terry-jeffords-model.pt", "wb") as file:
         pickle.dump(self.model, file)
@@ -202,6 +228,7 @@ def reward_from_events(self, events: List[str]) -> int:
         e.KILLED_OPPONENT: 1,
         e.KILLED_SELF: -0.5,
         e.CRATE_DESTROYED: 0.1,
+        ALREADY_VISITED_EVENT: -0.05,
         LAST_MAN_STANDING: 1,
         CLOSER_TO_ENEMY: 0.002,
         CLOSEST_TO_ENEMY: 0.1,

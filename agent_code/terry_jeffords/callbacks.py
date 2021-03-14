@@ -29,6 +29,7 @@ def setup(self):
         self.logger.info("Setting up model from scratch.")
         self.model = DQN(1447, 6)
     else:
+        print("Is loading")
         self.logger.info("Loading model from saved state.")
         with open("terry-jeffords-model.pt", "rb") as file:
             self.model = pickle.load(file)
@@ -56,7 +57,7 @@ def act(self, game_state: dict) -> str:
 
     features = state_to_features_hybrid(game_state)
     features_tensor = torch.from_numpy(features).float()
-    predicted_reward = self.model(features_tensor)
+    predicted_reward = self.model.forward(features_tensor)
     action = torch.argmax(predicted_reward)
 
     self.logger.info(f'Selected action: {action}')
@@ -75,6 +76,9 @@ def state_to_features_hybrid(game_state: dict) -> np.array:
     :param game_state:  A dictionary describing the current game board.
     :return: np.array
     """
+
+    # TODO Turn map to have same view of user, good idea?
+
     # This is the dict before the game begins and after it ends
     if game_state is None:
         return None
