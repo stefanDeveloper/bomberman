@@ -21,7 +21,7 @@ Transition = namedtuple('Transition',
 # Hyper parameters -- DO modify
 TRANSITION_HISTORY_SIZE = 3  # keep only ... last transitions
 RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
-BATCH_SIZE = 128
+BATCH_SIZE = 127
 GAMMA = 0.999
 EPS_START = 0.9
 EPS_END = 0.05
@@ -45,8 +45,8 @@ def setup_training(self):
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
     n_actions = 6
 
-    self.policy_net = DQN(1447, n_actions)
-    self.target_net = DQN(1447, n_actions)
+    self.policy_net = DQN(291, n_actions)
+    self.target_net = DQN(291, n_actions)
     self.target_net.load_state_dict(self.policy_net.state_dict())
     self.target_net.eval()
 
@@ -74,11 +74,12 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
 
     # Idea: Add your own events to hand out rewards
-    if ...:
-        events.append(PLACEHOLDER_EVENT)
+    #if ...:
+    #    events.append(PLACEHOLDER_EVENT)
 
-    self.memory.push(state_to_features(old_game_state), self_action, state_to_features(new_game_state),
-                     reward_from_events(self, events))
+    if old_game_state is not None:
+        self.memory.push(state_to_features(old_game_state), self_action, state_to_features(new_game_state),
+                         reward_from_events(self, events))
 
     # state_to_features is defined in callbacks.py
     self.transitions.append(
@@ -130,7 +131,7 @@ def reward_from_events(self, events: List[str]) -> int:
 
 
 def optimize_model(self):
-    if len(self.memory) < BATCH_SIZE:
+    if len(self.memory) < 128:
         return
 
     transitions = self.memory.sample(BATCH_SIZE)
@@ -143,28 +144,27 @@ def optimize_model(self):
     # (a final state would've been the one after which simulation ended)
     non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
                                             batch.next_state)), dtype=torch.bool)
-    print(batch.state)
-    training_states = torch.tensor(batch.state[1:]).float()
-    training_next_states = torch.tensor(batch.next_state[1:]).float()
-    training_rewards = torch.tensor(batch.reward[1:]).float()
-    training_actions = batch.reward[1:]
+
+    training_states = torch.tensor(batch.state).float()
+    training_next_states = torch.tensor(batch.next_state).float()
+    training_rewards = torch.tensor(batch.reward).float()
+    training_actions = batch.action
+
+    action_indices = torch.zeros((training_states.shape[0], len(ACTIONS)))
+
+    for i in range(len(training_actions)):
+        action_indices[i][ACTIONS.index(training_actions[i])] = 1
 
     non_final_next_states = torch.cat([s for s in training_next_states
                                        if s is not None])
-
-    action_indices = torch.zeros((training_states.shape[0], len(ACTIONS))).bool()
-
-    for i in range(len(training_actions)):
-        action_indices[i][ACTIONS.index(training_actions[i])] = True
-
-    state_batch = torch.cat(training_states)
-    action_batch = torch.cat(training_actions)
-    reward_batch = torch.cat(training_rewards)
+    state_batch = training_states
+    action_batch = action_indices
+    reward_batch = training_rewards
 
     # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
     # columns of actions taken. These are the actions which would've been taken
     # for each batch state according to policy_net
-    state_action_values = self.policy_net(state_batch).gather(1, action_batch)
+    state_action_values = self.policy_net(state_batch)
 
     # Compute V(s_{t+1}) for all next states.
     # Expected values of actions for non_final_next_states are computed based
@@ -172,7 +172,7 @@ def optimize_model(self):
     # This is merged based on the mask, such that we'll have either the expected
     # state value or 0 in case the state was final.
     next_state_values = torch.zeros(BATCH_SIZE)
-    next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0]
+    next_state_values[non_final_mask] = self.target_net(non_final_next_states.reshape(-1,291)).max(1)[0]
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 

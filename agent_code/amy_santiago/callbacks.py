@@ -32,7 +32,7 @@ def setup(self):
     else:
         self.logger.info("Loading model from saved state.")
         with open("my-saved-model.pt", "rb") as file:
-            self.model = pickle.load(file)
+            self.policy_net = pickle.load(file)
 
 
 def act(self, game_state: dict) -> str:
@@ -65,10 +65,9 @@ def act(self, game_state: dict) -> str:
             features = state_to_features(game_state)
             features_tensor = torch.from_numpy(features).float()
             action = self.policy_net(features_tensor)
-            print(ACTIONS[torch.argmax(action)])
             return ACTIONS[torch.argmax(action)]
     else:
-        return torch.tensor([[random.randrange(len(ACTIONS))]], dtype=torch.long)
+        return ACTIONS[random.randrange(len(ACTIONS))]
 
 
 def state_to_features(game_state: dict) -> np.array:
@@ -92,26 +91,25 @@ def state_to_features(game_state: dict) -> np.array:
     field_shape = game_state["field"].shape
 
     # Create Hybrid Matrix with field shape x vector of size 5 to encode field state
-    hybrid_matrix = np.zeros(field_shape + (5,), dtype=np.double)
+    hybrid_matrix = np.zeros(field_shape + (1,), dtype=np.double)
 
     # others
-    for i in game_state["others"]:
-        hybrid_matrix[i[3], 0] = 1
+    #for i in game_state["others"]:
+    #    hybrid_matrix[i[3], 0] = 1
 
     # bombs
-    for i in game_state["bombs"]:
-        hybrid_matrix[i[0], 1] = 1
+    #for i in game_state["bombs"]:
+    #    hybrid_matrix[i[0], 1] = 1
 
     # coins
     for i in game_state["coins"]:
-        hybrid_matrix[i, 2] = 1
+        hybrid_matrix[i, 1] = 1
 
     # crates
-    hybrid_matrix[:, :, 3] = np.where(game_state["field"] == 1, 1, 0)
+    #hybrid_matrix[:, :, 3] = np.where(game_state["field"] == 1, 1, 0)
 
     # walls
-    hybrid_matrix[:, :, 4] = np.where(game_state["field"] == -1, 1, 0)
-
+    #hybrid_matrix[:, :, 4] = np.where(game_state["field"] == -1, 1, 0)
     final_vector = np.append(hybrid_matrix.reshape(-1), (game_state["self"][3]))
-
+    #print(final_vector)
     return final_vector
