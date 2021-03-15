@@ -54,8 +54,8 @@ def setup_training(self):
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
     n_actions = 6
 
-    self.policy_net = DQN(1447, n_actions)
-    self.target_net = DQN(1447, n_actions)
+    self.policy_net = DQN(1734, n_actions)
+    self.target_net = DQN(1734, n_actions)
     self.target_net.load_state_dict(self.policy_net.state_dict())
     self.target_net.eval()
 
@@ -122,24 +122,28 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     current_bombs = new_game_state["bombs"]
     is_getting_bombed = False
     for (x, y), countdown in current_bombs:
-        for i in range(1, settings.BOMB_POWER + 1):
+        for i in range(0, settings.BOMB_POWER + 1):
             if new_game_state['field'][x + i, y] == -1:
                 break
+            # Check current position
             if pos_current == (x + i, y):
                 is_getting_bombed = True
-        for i in range(1, settings.BOMB_POWER + 1):
+        for i in range(0, settings.BOMB_POWER + 1):
             if new_game_state['field'][x - i, y] == -1:
                 break
+            # Check current position
             if pos_current == (x - i, y):
                 is_getting_bombed = True
-        for i in range(1, settings.BOMB_POWER + 1):
+        for i in range(0, settings.BOMB_POWER + 1):
             if new_game_state['field'][x, y + i] == -1:
                 break
+            # Check current position
             if pos_current == (x, y + i):
                 is_getting_bombed = True
-        for i in range(1, settings.BOMB_POWER + 1):
+        for i in range(0, settings.BOMB_POWER + 1):
             if new_game_state['field'][x, y - i] == -1:
                 break
+            # Check current position
             if pos_current == (x, y - i):
                 is_getting_bombed = True
 
@@ -151,8 +155,8 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         self.logger.debug(f'Add game event {SAFE_CELL_BOMB} in step {new_game_state["step"]}')
 
     if self.visited_before[pos_current[0]][pos_current[1]] == 1:
-        pass
-        events.append(ALREADY_VISITED_EVENT)
+        # events.append(ALREADY_VISITED_EVENT)
+        self.logger.debug(f'Add game event {ALREADY_VISITED_EVENT} in step {new_game_state["step"]}')
 
     self.visited_before = self.visited
 
@@ -269,7 +273,7 @@ def optimize_model(self):
     # This is merged based on the mask, such that we'll have either the expected
     # state value or 0 in case the state was final.
     next_state_values = torch.zeros(BATCH_SIZE)
-    next_state_values[non_final_mask] = self.target_net(non_final_next_states.reshape(-1, 1447)).max(1)[0]
+    next_state_values[non_final_mask] = self.target_net(non_final_next_states.reshape(-1, 1734)).max(1)[0]
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 

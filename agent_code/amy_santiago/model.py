@@ -1,6 +1,6 @@
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
+
 
 class DQN(nn.Module):
     gamma = 1.0
@@ -21,8 +21,6 @@ class DQN(nn.Module):
         )
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters(), self.learning_rate)
-        # self.device = T.device('cuda:0' if T.cuda.is_available() else 'cuda:1')
-        # self.to(self.device)
 
     def forward(self, x):
         logits = self.model_sequence(x)
