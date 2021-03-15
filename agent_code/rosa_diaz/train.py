@@ -22,7 +22,7 @@ Transition = namedtuple('Transition',
 # Hyper parameters -- DO modify
 TRANSITION_HISTORY_SIZE = 3  # keep only ... last transitions
 RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
-BATCH_SIZE = 127
+BATCH_SIZE = 10 # default = 127
 GAMMA = 0.999
 EPS_START = 0.9
 EPS_END = 0.05
@@ -246,6 +246,9 @@ def optimize_model(self):
     state_batch = torch.tensor(batch.state).float()
     next_state_batch = torch.tensor(batch.next_state).float()
     reward_batch = torch.tensor(batch.reward).float()
+
+    with open("reward_log.txt", "a") as reward_log:
+        reward_log.write(str(torch.mean(reward_batch)) + "\t")
 
     action_batch = torch.zeros((state_batch.shape[0], len(ACTIONS)), dtype=torch.int64)
 
