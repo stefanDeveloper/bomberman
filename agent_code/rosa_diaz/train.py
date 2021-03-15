@@ -52,15 +52,15 @@ def setup_training(self):
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
     n_actions = 6
 
-    self.policy_net = DQN(1447, n_actions)
-    self.target_net = DQN(1447, n_actions)
+    self.policy_net = DQN(1734, n_actions)
+    self.target_net = DQN(1734, n_actions)
     self.target_net.load_state_dict(self.policy_net.state_dict())
     self.target_net.eval()
 
     self.visited = np.zeros((17, 17))
     self.visited_before = np.zeros((17, 17))
 
-    self.optimizer = optim.RMSprop(self.policy_net.parameters())
+    self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=0.005)
     self.memory = ReplayMemory(10000)
 
 
@@ -200,8 +200,13 @@ def reward_from_events(self, events: List[str]) -> int:
     game_rewards = {
         e.COIN_COLLECTED: 1,
         e.KILLED_OPPONENT: 1,
-        e.KILLED_SELF: -0.5,
+        e.KILLED_SELF: -5,
         e.CRATE_DESTROYED: 0.1,
+        e.MOVED_LEFT: 0.3,
+        e.MOVED_RIGHT: 0.3,
+        e.MOVED_UP: 0.3,
+        e.MOVED_DOWN: 0.3,
+        e.BOMB_DROPPED: -10,
         ALREADY_VISITED_EVENT: -0.05,
         LAST_MAN_STANDING: 1,
         CLOSER_TO_ENEMY: 0.002,
@@ -253,7 +258,9 @@ def optimize_model(self):
     # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
     # columns of actions taken. These are the actions which would've been taken
     # for each batch state according to policy_net
-    state_action_values = self.policy_net(state_batch).gather(1, action_batch)
+
+    # probably take the max, otherwise broadcasting leads to strange result
+    state_action_values = self.policy_net(state_batch).gather(1, action_batch).max(1)[0]
 
     # Compute V(s_{t+1}) for all next states.
     # Expected values of actions for non_final_next_states are computed based
@@ -261,12 +268,19 @@ def optimize_model(self):
     # This is merged based on the mask, such that we'll have either the expected
     # state value or 0 in case the state was final.
     next_state_values = torch.zeros(BATCH_SIZE)
-    next_state_values[non_final_mask] = self.target_net(non_final_next_states.reshape(-1, 1447)).max(1)[0]
+    next_state_values[non_final_mask] = self.target_net(non_final_next_states.reshape(-1, 1734)).max(1)[0]
+    #print(f"next_State_values.shape: {next_state_values.shape}")
+    #print(f"state_action_values.shape: {state_action_values.shape}")
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
+
     # Compute Huber loss
-    loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+    # replaced expected_state_action_values.unsqueeze(1)
+    loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
+
+    with open("loss_log.txt", "a") as loss_log:
+        loss_log.write(str(loss.item()) + "\t")
 
     # Optimize the model
     self.optimizer.zero_grad()

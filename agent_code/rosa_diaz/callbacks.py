@@ -76,8 +76,6 @@ def state_to_features(game_state: dict) -> np.array:
     :return: np.array
     """
 
-    # TODO Turn map to have same view of user, good idea?
-
     # This is the dict before the game begins and after it ends
     if game_state is None:
         return None
@@ -85,25 +83,28 @@ def state_to_features(game_state: dict) -> np.array:
     field_shape = game_state["field"].shape
 
     # Create Hybrid Matrix with field shape x vector of size 5 to encode field state
-    hybrid_matrix = np.zeros(field_shape + (5,), dtype=np.double)
+    hybrid_matrix = np.zeros(field_shape + (6,), dtype=np.double)
 
-    # others
-    for i in game_state["others"]:
-        hybrid_matrix[i[3], 0] = 1
+    # Others
+    for _, _, _, (x, y) in game_state["others"]:
+        hybrid_matrix[x, y, 0] = 1
 
-    # bombs
-    for i in game_state["bombs"]:
-        hybrid_matrix[i[0], 1] = 1
+    # Bombs
+    for (x, y), _ in game_state["bombs"]:
+        hybrid_matrix[x, y, 1] = 1
 
-    # coins
-    for i in game_state["coins"]:
-        hybrid_matrix[i, 2] = 1
+    # Coins
+    for (x, y) in game_state["coins"]:
+        hybrid_matrix[x, y, 2] = 1
 
-    # crates
+    # Crates
     hybrid_matrix[:, :, 3] = np.where(game_state["field"] == 1, 1, 0)
 
-    # walls
+    # Walls
     hybrid_matrix[:, :, 4] = np.where(game_state["field"] == -1, 1, 0)
-    final_vector = np.append(hybrid_matrix.reshape(-1), (game_state["self"][3]))
 
-    return final_vector
+    # Position of user
+    _, _, _, (x, y) = game_state["self"]
+    hybrid_matrix[x, y, 5] = 1
+
+    return hybrid_matrix.reshape(-1)
