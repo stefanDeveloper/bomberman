@@ -19,6 +19,9 @@ from .replay_memory import ReplayMemory
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
+
+ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
+
 # Hyper parameters -- DO modify
 TRANSITION_HISTORY_SIZE = 3  # keep only ... last transitions
 RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
@@ -164,13 +167,8 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     self.visited[pos_current[0]][pos_current[1]] = 1
 
     if old_game_state is not None:
-        self.memory.push(state_to_features(old_game_state), self_action, state_to_features(new_game_state),
+        self.memory.push(state_to_features(old_game_state), [ACTIONS.index(self_action)], state_to_features(new_game_state),
                          reward_from_events(self, events))
-
-    # state_to_features is defined in callbacks.py
-    self.transitions.append(
-        Transition(state_to_features(old_game_state), self_action, state_to_features(new_game_state),
-                   reward_from_events(self, events)))
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
@@ -187,7 +185,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     """
     self.logger.debug(f'Encountered event(s) {", ".join(map(repr, events))} in final step')
     self.transitions.append(
-        Transition(state_to_features(last_game_state), last_action, None, reward_from_events(self, events)))
+        Transition(state_to_features(last_game_state), [ACTIONS.index(last_action)], None, reward_from_events(self, events)))
 
     self.visited = np.zeros((17, 17))
     self.visited_before = np.zeros((17, 17))
@@ -210,11 +208,11 @@ def reward_from_events(self, events: List[str]) -> int:
     certain behavior.
     """
     game_rewards = {
-        e.COIN_COLLECTED: 1,
+        e.COIN_COLLECTED: 100,
         e.KILLED_OPPONENT: 1,
         e.KILLED_SELF: -0.5,
         e.CRATE_DESTROYED: 0.1,
-        ALREADY_VISITED_EVENT: -0.05,
+        #ALREADY_VISITED_EVENT: -0.05,
         LAST_MAN_STANDING: 1,
         CLOSER_TO_ENEMY: 0.002,
         CLOSEST_TO_ENEMY: 0.1,
@@ -254,26 +252,25 @@ def optimize_model(self):
     next_state_batch = torch.tensor(batch.next_state).float()
     reward_batch = torch.tensor(batch.reward).float()
 
-    action_batch = torch.zeros((state_batch.shape[0], len(ACTIONS)), dtype=torch.int64)
+    #action_batch = torch.zeros((state_batch.shape[0], len(ACTIONS)), dtype=torch.int64)
+    #print(batch.action)
+    #for i in range(len(batch.action)):
+    #    action_batch[i][ACTIONS.index(batch.action[i])] = 1
 
-    for i in range(len(batch.action)):
-        action_batch[i][ACTIONS.index(batch.action[i])] = 1
-
-    non_final_next_states = torch.cat([s for s in next_state_batch
+    non_final_next_states = torch.stack([s for s in next_state_batch
                                        if s is not None])
-
+    action_batch = torch.tensor(np.asarray(batch.action, dtype=np.int64))
     # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
     # columns of actions taken. These are the actions which would've been taken
     # for each batch state according to policy_net
     state_action_values = self.policy_net(state_batch).gather(1, action_batch)
-
     # Compute V(s_{t+1}) for all next states.
     # Expected values of actions for non_final_next_states are computed based
     # on the "older" target_net; selecting their best reward with max(1)[0].
     # This is merged based on the mask, such that we'll have either the expected
     # state value or 0 in case the state was final.
     next_state_values = torch.zeros(BATCH_SIZE)
-    next_state_values[non_final_mask] = self.target_net(non_final_next_states.reshape(-1, 1734)).max(1)[0]
+    next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0]
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
