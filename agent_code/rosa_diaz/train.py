@@ -178,6 +178,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         #for param in self.policy_net.parameters():
         #    param.grad.data.clamp_(-1, 1)
         #self.optimizer.step()
+        optimize_model_single(self, old_game_state, self_action, new_game_state, events)
 
     # state_to_features is defined in callbacks.py
     self.transitions.append(
@@ -338,9 +339,68 @@ def optimize_model(self):
 
     # Compute Huber loss
     # replaced expected_state_action_values.unsqueeze(1)
+    # have to change the loss or train in every move
+    #print(f"state_action_values: {state_action_values}")
     loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
     with open("loss_log.txt", "a") as loss_log:
         loss_log.write(str(loss.item()) + "\t")
+
+    # Optimize the model
+    self.optimizer.zero_grad()
+    loss.backward()
+    #for param in self.policy_net.parameters():
+    #    param.grad.data.clamp_(-1, 1)
+    self.optimizer.step()
+
+
+def optimize_model_single(self, old_state, action, new_state, events):
+    if (old_state is None) or (new_state is None):
+        return
+    # self.transitions.append(
+    #    Transition(state_to_features(old_game_state), self_action, state_to_features(new_game_state),
+    #               reward_from_events(self, events)))
+    old_game_state = torch.tensor(state_to_features(old_state)).float()
+    new_game_state = torch.tensor(state_to_features(new_state)).float()
+    reward = reward_from_events(self, events)
+
+    # transitions = self.memory.sample(BATCH_SIZE)
+    # batch = Transition(*zip(*transitions))
+    #non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
+    #                                        batch.next_state)), dtype=torch.bool)
+    #
+    #state_batch = torch.tensor(batch.state).float()
+    #next_state_batch = torch.tensor(batch.next_state).float()
+    #reward_batch = torch.tensor(batch.reward).float()
+
+    #with open("reward_log.txt", "a") as reward_log:
+    #    reward_log.write(str(torch.mean(reward_batch).item()) + "\t")
+
+    # action_batch = torch.zeros((state_batch.shape[0], len(ACTIONS)), dtype=torch.int64)
+    action_mask = torch.zeros(len(ACTIONS), dtype=torch.int64)
+    action_mask[ACTIONS.index(action)] = 1
+
+    state_action_value = torch.masked_select(self.policy_net(old_game_state), action_mask.bool())
+
+    # next_state_values = torch.zeros(BATCH_SIZE)
+    # next_state_values[non_final_mask] = self.target_net(non_final_next_states.reshape(-1, 1734)).max(1)[0]
+    # next_state_action_value = self.target_net(new_game_state).max()
+    next_state_action_value = self.target_net(new_game_state).max().unsqueeze(0)
+    # print(f"next_State_values.shape: {next_state_values.shape}")
+    # print(f"state_action_values.shape: {state_action_values.shape}")
+    # Compute the expected Q values
+    #print(f"next_state_action_value: {next_state_action_value}")
+    #print(f"next_state_action_value.max(): {next_state_action_value.max().unsqueeze(0)}")
+    expected_state_action_value = (next_state_action_value * GAMMA) + reward
+    #print(f"expected_state: {expected_state_action_value.shape}")
+    #print(f"state_action_value: {state_action_value.shape}")
+    # Compute Huber loss
+    # replaced expected_state_action_values.unsqueeze(1)
+    # have to change the loss or train in every move
+    # print(f"state_action_value: {state_action_value}")
+    loss = F.smooth_l1_loss(state_action_value, expected_state_action_value)
+    #print(f"loss: {loss}")
+    #with open("loss_log.txt", "a") as loss_log:
+        #loss_log.write(str(loss.item()) + "\t")
 
     # Optimize the model
     self.optimizer.zero_grad()

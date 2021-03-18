@@ -43,18 +43,8 @@ def setup(self):
 
 
 def get_valid_actions(self, game_state: dict):
-    #print(f"game_state.keys: {game_state.keys()}")
-    #print(f"game_state[field]: \n{game_state['field']}")
     tmp_field = game_state['field']
     x, y = game_state['self'][3]
-    #tmp_field[(x, y)] = 5
-    #tmp_field[(x+1, y)] = 6
-    #tmp_field[(x-1, y)] = 4
-    #tmp_field[(x, y+1)] = 8
-    #tmp_field[(x, y-1)] = 2
-    #print(f"game_state[self]: \n{game_state['self']}")
-    #print(f"tmp_field: \n{tmp_field}")
-    # valid_actions = []
     preferred_actions = []
     discouraged_actions = []
     if self.exploration_map[(x, y+1)] == 0:
@@ -76,32 +66,19 @@ def get_valid_actions(self, game_state: dict):
         preferred_actions.append('LEFT')
     if self.exploration_map[(x-1, y)] == 1:
         discouraged_actions.append('LEFT')
-
-    #if tmp_field[(x+1, y)] == 0:
-    #    valid_actions.append('RIGHT')
-    #if tmp_field[(x, y-1)] == 0:
-    #    valid_actions.append('UP') # yo wtf is with directions
-    #if tmp_field[(x-1, y)] == 0:
-    #    valid_actions.append('LEFT')
-    # print(valid_actions)
     return preferred_actions, discouraged_actions
 
 def choose_best_possible_action(self, game_state: dict, action):
-    np_action = np.argsort(action.numpy())[::-1] # indices of sorted array in descending order
+    np_action = np.argsort(action.numpy())[::-1]
     preferred_actions, discouraged_actions = get_valid_actions(self, game_state)
-    #preferred_actions_indices = np_action[:len(preferred_actions)]
-    #discouraged_actions_indices = np_action[len(preferred_actions):]
-    # print(f"preferred_actions: {preferred_actions}")
-    # print(f"discouraged_actions: {discouraged_actions}")
     for i in np_action:
-        if (ACTIONS[i] in preferred_actions):  # and (ACTIONS[i] != self.action_deque[0]): # discourage repeat behaviour
-            #print(f"self.action_deque[1]: {self.action_deque[0]}")
+        if (ACTIONS[i] in preferred_actions) and (ACTIONS[i] != self.action_deque[0]): # discourage repeat behaviour
             self.action_deque.append(ACTIONS[i])
             #print(self.action_deque)
             #print(ACTIONS[i])
             return ACTIONS[i]
     for i in np_action:
-        if (ACTIONS[i] in discouraged_actions):  # and (ACTIONS[i] != self.action_deque[0]): # discourage repeat behaviour
+        if (ACTIONS[i] in discouraged_actions) and (ACTIONS[i] != self.action_deque[0]): # discourage repeat behaviour
             #print(f"self.action_deque[1]: {self.action_deque[0]}")
             self.action_deque.append(ACTIONS[i])
             #print(self.action_deque)
@@ -130,7 +107,7 @@ def act(self, game_state: dict) -> str:
     if (steps_done % steps_per_game) == 0:
         self.exploration_map = game_state['field']
     self.exploration_map[game_state['self'][3]] = 1
-    print(f"self.exploration_map: {self.exploration_map}")
+    # print(f"self.exploration_map: {self.exploration_map}")
     steps_done += 1
     # get_valid_actions(self, game_state)
     if sample > eps_threshold or not self.train:
