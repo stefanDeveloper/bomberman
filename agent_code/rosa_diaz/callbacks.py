@@ -88,17 +88,19 @@ def get_valid_actions(self, game_state: dict):
 def choose_best_possible_action(self, game_state: dict, action):
     np_action = np.argsort(action.numpy())[::-1] # indices of sorted array in descending order
     preferred_actions, discouraged_actions = get_valid_actions(self, game_state)
+    #preferred_actions_indices = np_action[:len(preferred_actions)]
+    #discouraged_actions_indices = np_action[len(preferred_actions):]
     # print(f"preferred_actions: {preferred_actions}")
     # print(f"discouraged_actions: {discouraged_actions}")
     for i in np_action:
-        if (ACTIONS[i] in preferred_actions) and (ACTIONS[i] != self.action_deque[0]): # discourage repeat behaviour
+        if (ACTIONS[i] in preferred_actions):  # and (ACTIONS[i] != self.action_deque[0]): # discourage repeat behaviour
             #print(f"self.action_deque[1]: {self.action_deque[0]}")
             self.action_deque.append(ACTIONS[i])
             #print(self.action_deque)
             #print(ACTIONS[i])
             return ACTIONS[i]
     for i in np_action:
-        if (ACTIONS[i] in discouraged_actions) and (ACTIONS[i] != self.action_deque[0]): # discourage repeat behaviour
+        if (ACTIONS[i] in discouraged_actions):  # and (ACTIONS[i] != self.action_deque[0]): # discourage repeat behaviour
             #print(f"self.action_deque[1]: {self.action_deque[0]}")
             self.action_deque.append(ACTIONS[i])
             #print(self.action_deque)
