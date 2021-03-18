@@ -11,6 +11,7 @@ EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
 steps_done = 0
+steps_per_game = 100
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
 
@@ -126,9 +127,10 @@ def act(self, game_state: dict) -> str:
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
         math.exp(-1. * steps_done / EPS_DECAY)
 
-    if steps_done == 0:
+    if (steps_done % steps_per_game) == 0:
         self.exploration_map = game_state['field']
     self.exploration_map[game_state['self'][3]] = 1
+    print(f"self.exploration_map: {self.exploration_map}")
     steps_done += 1
     # get_valid_actions(self, game_state)
     if sample > eps_threshold or not self.train:

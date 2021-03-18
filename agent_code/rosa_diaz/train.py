@@ -70,7 +70,7 @@ def setup_training(self):
     self.visited_before = np.zeros((17, 17))
 
     # self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=0.001)
-    self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.00005)
+    self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0005)
     self.memory = ReplayMemory(1000) # that contains info from the last 100 games (default: 10000)
 
 
@@ -208,6 +208,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
         pickle.dump(self.policy_net, file)
 
     optimize_model(self)
+    #self.exploration_map = last_game_state['field']
 
     # Update the target network, copying all weights and biases in DQN
     if ROUNDS % TARGET_UPDATE == 0:
