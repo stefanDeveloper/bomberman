@@ -2,6 +2,7 @@ import math
 import os
 import pickle
 import random
+from collections import namedtuple, deque
 
 import numpy as np
 import torch
@@ -26,15 +27,87 @@ def setup(self):
     that are is independent of the game state.
     :param self: This object is passed to all callbacks and you can set arbitrary values.
     """
-
+    self.action_deque = deque(maxlen=2)
+    self.action_deque.append("NONE")
+    self.action_deque.append("NONE")
+    self.exploration_map = None
     steps_done = 0
-
+    # self.policy_net = None
     if self.train or not os.path.isfile("my-saved-model.pt"):
         self.logger.info("Setting up model from scratch.")
     else:
         self.logger.info("Loading model from saved state.")
         with open("my-saved-model.pt", "rb") as file:
             self.policy_net = pickle.load(file)
+
+
+def get_valid_actions(self, game_state: dict):
+    #print(f"game_state.keys: {game_state.keys()}")
+    #print(f"game_state[field]: \n{game_state['field']}")
+    tmp_field = game_state['field']
+    x, y = game_state['self'][3]
+    #tmp_field[(x, y)] = 5
+    #tmp_field[(x+1, y)] = 6
+    #tmp_field[(x-1, y)] = 4
+    #tmp_field[(x, y+1)] = 8
+    #tmp_field[(x, y-1)] = 2
+    #print(f"game_state[self]: \n{game_state['self']}")
+    #print(f"tmp_field: \n{tmp_field}")
+    # valid_actions = []
+    preferred_actions = []
+    discouraged_actions = []
+    if self.exploration_map[(x, y+1)] == 0:
+        preferred_actions.append('DOWN')
+    if self.exploration_map[(x, y+1)] == 1:
+        discouraged_actions.append('DOWN')
+
+    if self.exploration_map[(x+1, y)] == 0:
+        preferred_actions.append('RIGHT')
+    if self.exploration_map[(x+1, y)] == 1:
+        discouraged_actions.append('RIGHT')
+
+    if self.exploration_map[(x, y-1)] == 0:
+        preferred_actions.append('UP')
+    if self.exploration_map[(x, y-1)] == 1:
+        discouraged_actions.append('UP')
+
+    if self.exploration_map[(x-1, y)] == 0:
+        preferred_actions.append('LEFT')
+    if self.exploration_map[(x-1, y)] == 1:
+        discouraged_actions.append('LEFT')
+
+    #if tmp_field[(x+1, y)] == 0:
+    #    valid_actions.append('RIGHT')
+    #if tmp_field[(x, y-1)] == 0:
+    #    valid_actions.append('UP') # yo wtf is with directions
+    #if tmp_field[(x-1, y)] == 0:
+    #    valid_actions.append('LEFT')
+    # print(valid_actions)
+    return preferred_actions, discouraged_actions
+
+def choose_best_possible_action(self, game_state: dict, action):
+    np_action = np.argsort(action.numpy())[::-1] # indices of sorted array in descending order
+    preferred_actions, discouraged_actions = get_valid_actions(self, game_state)
+    # print(f"preferred_actions: {preferred_actions}")
+    # print(f"discouraged_actions: {discouraged_actions}")
+    for i in np_action:
+        if (ACTIONS[i] in preferred_actions) and (ACTIONS[i] != self.action_deque[0]): # discourage repeat behaviour
+            #print(f"self.action_deque[1]: {self.action_deque[0]}")
+            self.action_deque.append(ACTIONS[i])
+            #print(self.action_deque)
+            #print(ACTIONS[i])
+            return ACTIONS[i]
+    for i in np_action:
+        if (ACTIONS[i] in discouraged_actions) and (ACTIONS[i] != self.action_deque[0]): # discourage repeat behaviour
+            #print(f"self.action_deque[1]: {self.action_deque[0]}")
+            self.action_deque.append(ACTIONS[i])
+            #print(self.action_deque)
+            #print(ACTIONS[i])
+            return ACTIONS[i]
+    print("Could not find correct stuff")
+
+
+
 
 
 def act(self, game_state: dict) -> str:
@@ -50,8 +123,13 @@ def act(self, game_state: dict) -> str:
     sample = random.random()
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
         math.exp(-1. * steps_done / EPS_DECAY)
+
+    if steps_done == 0:
+        self.exploration_map = game_state['field']
+    self.exploration_map[game_state['self'][3]] = 1
     steps_done += 1
-    if sample > eps_threshold:
+    # get_valid_actions(self, game_state)
+    if sample > eps_threshold or not self.train:
         with torch.no_grad():
             # t.max(1) will return largest column value of each row.
             # second column on max result is index of where max element was
@@ -59,9 +137,16 @@ def act(self, game_state: dict) -> str:
             features = state_to_features(game_state)
             features_tensor = torch.from_numpy(features).float()
             action = self.policy_net(features_tensor)
-            return ACTIONS[torch.argmax(action)]
+            # return ACTIONS[torch.argmax(action)]
+            chosen_action = choose_best_possible_action(self, game_state, action)
+            return chosen_action
     else:
-        return ACTIONS[random.randrange(len(ACTIONS))]
+        preferred_actions, discouraged_actions = get_valid_actions(self, game_state)
+        v_actions = preferred_actions + discouraged_actions
+        #print(f"rand: {v_actions[random.randrange(len(v_actions))]}")
+        #print(f"v_actions: {v_actions}")
+        return np.random.choice(v_actions)
+        #np.random.choice(ACTIONS, p=self.model)
 
 
 def state_to_features(game_state: dict) -> np.array:

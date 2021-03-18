@@ -40,6 +40,15 @@ DANGER_ZONE_BOMB = "DANGER_ZONE_BOMB"
 SAFE_CELL_BOMB = "SAFE_CELL_BOMB"
 ALREADY_VISITED_EVENT = "ALREADY_VISITED_EVENT"
 
+# attempt at own loss
+
+class MyLoss():
+    def __init__(self, size_average=None, reduce=None, reduction: str = 'mean') -> None:
+        super(MyLoss, self).__init__(size_average, reduce, reduction)
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        return input - target
+
 
 def setup_training(self):
     """
@@ -60,8 +69,9 @@ def setup_training(self):
     self.visited = np.zeros((17, 17))
     self.visited_before = np.zeros((17, 17))
 
-    self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=0.005)
-    self.memory = ReplayMemory(10000)
+    # self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=0.001)
+    self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.00005)
+    self.memory = ReplayMemory(1000) # that contains info from the last 100 games (default: 10000)
 
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
@@ -158,10 +168,23 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         self.memory.push(state_to_features(old_game_state), self_action, state_to_features(new_game_state),
                          reward_from_events(self, events))
 
+        # here is the intermittent training stuff
+        # state_action_value = self.policy_net(torch.tensor(state_to_features(old_game_state)).float())[ACTIONS.index(self_action)]
+        # r = reward_from_events(self, events)
+        # state_next_action_value = self.policy_net(torch.tensor(state_to_features(new_game_state)).float()).max()
+        #loss =F.smooth_l1_loss(state_action_value, state_next_action_value)
+        #self.optimizer.zero_grad()
+        #loss.backward()
+        #for param in self.policy_net.parameters():
+        #    param.grad.data.clamp_(-1, 1)
+        #self.optimizer.step()
+
     # state_to_features is defined in callbacks.py
     self.transitions.append(
         Transition(state_to_features(old_game_state), self_action, state_to_features(new_game_state),
                    reward_from_events(self, events)))
+
+
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
@@ -198,7 +221,7 @@ def reward_from_events(self, events: List[str]) -> int:
     certain behavior.
     """
     game_rewards = {
-        e.COIN_COLLECTED: 1,
+        e.COIN_COLLECTED: 10,
         e.KILLED_OPPONENT: 1,
         e.KILLED_SELF: -5,
         e.CRATE_DESTROYED: 0.1,
@@ -207,13 +230,15 @@ def reward_from_events(self, events: List[str]) -> int:
         e.MOVED_UP: 0.3,
         e.MOVED_DOWN: 0.3,
         e.BOMB_DROPPED: -10,
-        ALREADY_VISITED_EVENT: -0.05,
-        LAST_MAN_STANDING: 1,
-        CLOSER_TO_ENEMY: 0.002,
-        CLOSEST_TO_ENEMY: 0.1,
-        FARTHER_TO_ENEMY: -0.002,
-        DANGER_ZONE_BOMB: -0.000666,
-        SAFE_CELL_BOMB: 0.002,
+        e.INVALID_ACTION: -1,
+        e.WAITED: -0.5,
+        # ALREADY_VISITED_EVENT: -0.05,
+        # LAST_MAN_STANDING: 1,
+        # CLOSER_TO_ENEMY: 0.002,
+        # CLOSEST_TO_ENEMY: 0.1,
+        # FARTHER_TO_ENEMY: -0.002,
+        # DANGER_ZONE_BOMB: -0.000666,
+        # SAFE_CELL_BOMB: 0.002,
     }
     reward_sum = 0
     for event in events:
@@ -225,6 +250,21 @@ def reward_from_events(self, events: List[str]) -> int:
     reward_sum -= 0.01
 
     return reward_sum
+
+
+def prob_policy(state_tensor):
+    state_numpy = state_tensor.detach().numpy()
+    state_min = np.min(state_numpy, axis=1)
+    state_numpy -= state_min[:, None]
+    state_sum = np.sum(state_numpy, axis=1)
+    state_numpy /= state_sum[:, None]
+    prob_choice = np.zeros(len(state_numpy))
+    state_tmp = state_tensor.detach().numpy()
+    for i in range(len(state_numpy)):
+        prob_choice[i] = np.random.choice(state_tmp[i], p=state_numpy[i])
+
+    return prob_choice
+
 
 
 def optimize_model(self):
@@ -253,6 +293,11 @@ def optimize_model(self):
     action_batch = torch.zeros((state_batch.shape[0], len(ACTIONS)), dtype=torch.int64)
 
     for i in range(len(batch.action)):
+        if batch.action[i] not in ACTIONS:
+            print(f"Batch_Action: {batch.action}")
+            print(f"batch_action[i]: {batch.action[i]}")
+        #print(batch.action[i])
+        #print(ACTIONS)
         action_batch[i][ACTIONS.index(batch.action[i])] = 1
 
     non_final_next_states = torch.cat([s for s in next_state_batch
@@ -263,7 +308,19 @@ def optimize_model(self):
     # for each batch state according to policy_net
 
     # probably take the max, otherwise broadcasting leads to strange result
-    state_action_values = self.policy_net(state_batch).gather(1, action_batch).max(1)[0]
+    # Problem: the loss thinks the policy was followed, when there might have been a random action
+    # state_action_values = self.policy_net(state_batch).gather(1, action_batch).max(1)[0]
+    # state_b_tmp = self.policy_net(state_batch)
+
+    state_action_values = torch.masked_select(self.policy_net(state_batch), action_batch.bool())
+    # print(f"self.policy_net(state_batch): {self.policy_net(state_batch)}")
+    # print(f"action_batch: {action_batch}")
+    #print(f"self.policy_net(state_batch) mask_select: {torch.masked_select(self.policy_net(state_batch), action_batch.bool())}")
+    #print(f"self.policy_net(state_batch).gather(1, action_batch): {self.policy_net(state_batch).gather(1, action_batch)}")
+
+    # print(f"prob_policy(self.policy_net(state_batch)): {prob_policy(state_b_tmp)}")
+    # print(f"self.policy_net(state_batch).shape: {state_b_tmp.shape}")
+    # print(f"self.policy_net(state_batch): {state_b_tmp}")
 
     # Compute V(s_{t+1}) for all next states.
     # Expected values of actions for non_final_next_states are computed based
@@ -281,13 +338,12 @@ def optimize_model(self):
     # Compute Huber loss
     # replaced expected_state_action_values.unsqueeze(1)
     loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
-
     with open("loss_log.txt", "a") as loss_log:
         loss_log.write(str(loss.item()) + "\t")
 
     # Optimize the model
     self.optimizer.zero_grad()
     loss.backward()
-    for param in self.policy_net.parameters():
-        param.grad.data.clamp_(-1, 1)
+    #for param in self.policy_net.parameters():
+    #    param.grad.data.clamp_(-1, 1)
     self.optimizer.step()
