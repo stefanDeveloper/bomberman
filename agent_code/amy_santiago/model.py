@@ -9,14 +9,14 @@ class DQN(nn.Module):
     def __init__(self, dim_in, dim_out):
         super(DQN, self).__init__()
         self.model_sequence = nn.Sequential(
-            nn.Linear(dim_in, 2048),
-            nn.ReLU(),
-            nn.Linear(2048, 512),
-            nn.ReLU(),
+            nn.Linear(dim_in, 512),
+            #nn.ReLU(),
+            #nn.Linear(2048, 512),
+            #nn.ReLU(),
             nn.Linear(512, 128),
-            nn.ReLU(),
+            #nn.ReLU(),
             nn.Linear(128, 32),
-            nn.ReLU(),
+            #nn.ReLU(),
             nn.Linear(32, dim_out),
         )
         self.loss = nn.MSELoss()
