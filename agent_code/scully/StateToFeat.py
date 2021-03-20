@@ -21,7 +21,7 @@ def state_to_features(game_state: dict) -> np.array:
     field_shape = game_state["field"].shape
 
     # Create Hybrid Matrix with field shape x vector of size 5 to encode field state
-    hybrid_matrix = np.zeros((2,) + field_shape, dtype=np.double)
+    hybrid_matrix = np.zeros((3,) + field_shape, dtype=np.double)
 
     # Others
     #for _, _, _, (x, y) in game_state["others"]:
@@ -40,7 +40,7 @@ def state_to_features(game_state: dict) -> np.array:
     #hybrid_matrix[:, :, 3] = np.where(game_state["field"] == 1, 1, 0)
 
     # Walls
-    # hybrid_matrix[:, :, 4] = np.where(game_state["field"] == -1, 1, 0)
+    hybrid_matrix[2, :, :] = np.where(game_state["field"] == -1, 1, 0)
 
     # Position of user
     _, _, _, (x, y) = game_state["self"]
