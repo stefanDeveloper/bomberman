@@ -23,7 +23,7 @@ Transition = namedtuple('Transition',
 TRANSITION_HISTORY_SIZE = 3  # keep only ... last transitions
 RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 BATCH_SIZE = 127 # default = 127
-GAMMA = 0.999
+GAMMA = 0.1
 EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
@@ -61,8 +61,8 @@ def setup_training(self):
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
     n_actions = 6
 
-    self.policy_net = DQN(1734, n_actions)
-    self.target_net = DQN(1734, n_actions)
+    self.policy_net = DQN(578, n_actions)
+    self.target_net = DQN(578, n_actions)
     self.target_net.load_state_dict(self.policy_net.state_dict())
     self.target_net.eval()
 
@@ -208,7 +208,8 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     with open("my-saved-model.pt", "wb") as file:
         pickle.dump(self.policy_net, file)
 
-    optimize_model(self)
+    # Only train on steps
+    # optimize_model(self)
     #self.exploration_map = last_game_state['field']
 
     # Update the target network, copying all weights and biases in DQN
@@ -227,14 +228,14 @@ def reward_from_events(self, events: List[str]) -> int:
         e.KILLED_OPPONENT: 1,
         e.KILLED_SELF: -5,
         e.CRATE_DESTROYED: 0.1,
-        e.MOVED_LEFT: 0.3,
-        e.MOVED_RIGHT: 0.3,
-        e.MOVED_UP: 0.3,
-        e.MOVED_DOWN: 0.3,
+        #e.MOVED_LEFT: 0.3,
+        #e.MOVED_RIGHT: 0.3,
+        #e.MOVED_UP: 0.3,
+        #e.MOVED_DOWN: 0.3,
         e.BOMB_DROPPED: -10,
         e.INVALID_ACTION: -1,
         e.WAITED: -0.5,
-        # ALREADY_VISITED_EVENT: -0.05,
+        ALREADY_VISITED_EVENT: -0.5,
         # LAST_MAN_STANDING: 1,
         # CLOSER_TO_ENEMY: 0.002,
         # CLOSEST_TO_ENEMY: 0.1,
@@ -397,8 +398,14 @@ def optimize_model_single(self, old_state, action, new_state, events):
     # replaced expected_state_action_values.unsqueeze(1)
     # have to change the loss or train in every move
     # print(f"state_action_value: {state_action_value}")
+    # Trick to cap loss
+    #loss = None # soon no training happening
+    #if expected_state_action_value > state_action_value:
+#        loss = F.smooth_l1_loss(state_action_value, state_action_value)
+#    else:
+        #loss = F.smooth_l1_loss(state_action_value, expected_state_action_value)
     loss = F.smooth_l1_loss(state_action_value, expected_state_action_value)
-    #print(f"loss: {loss}")
+    # print(f"loss: {loss}")
     #with open("loss_log.txt", "a") as loss_log:
         #loss_log.write(str(loss.item()) + "\t")
 

@@ -10,15 +10,15 @@ class DQN(nn.Module):
     def __init__(self, dim_in, dim_out):
         super(DQN, self).__init__()
         self.model_sequence = nn.Sequential(
-            nn.Linear(dim_in, 2048),
-            nn.ReLU(),
-            nn.Linear(2048, 512),
-            nn.ReLU(),
-            nn.Linear(512, 128),
-            nn.ReLU(),
-            nn.Linear(128, 32),
-            nn.ReLU(),
-            nn.Linear(32, dim_out),
+            nn.Linear(dim_in, 6), # def 2048, 512
+            #nn.ReLU(),
+            #nn.Linear(512, 512),
+            #nn.ReLU(),
+            #nn.Linear(512, 128),
+            #nn.ReLU(),
+            #nn.Linear(128, 32),
+            #nn.ReLU(),
+            #nn.Linear(32, dim_out),
         )
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters(), self.learning_rate)
@@ -27,5 +27,8 @@ class DQN(nn.Module):
 
     def forward(self, x):
         #x.to(self.device)
+        #print(f"model: {self}")
+        #for param in self.parameters():
+        #    print(param.data)
         logits = self.model_sequence(x)
         return logits

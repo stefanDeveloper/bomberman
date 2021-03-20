@@ -69,7 +69,7 @@ def get_valid_actions(self, game_state: dict):
     return preferred_actions, discouraged_actions
 
 def choose_best_possible_action(self, game_state: dict, action):
-    np_action = np.argsort(action.numpy())[::-1]
+    np_action = np.argsort(action.detach().numpy())[::-1]
     preferred_actions, discouraged_actions = get_valid_actions(self, game_state)
     for i in np_action:
         if (ACTIONS[i] in preferred_actions) and (ACTIONS[i] != self.action_deque[0]): # discourage repeat behaviour
@@ -100,6 +100,7 @@ def act(self, game_state: dict) -> str:
     :return: The action to take as a string.
     """
     # todo Exploration vs exploitation
+    print("hi, im act")
     sample = random.random()
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
         math.exp(-1. * steps_done / EPS_DECAY)
@@ -111,17 +112,19 @@ def act(self, game_state: dict) -> str:
     steps_done += 1
     # get_valid_actions(self, game_state)
     if sample > eps_threshold or not self.train:
-        with torch.no_grad():
+        #with torch.no_grad():
             # t.max(1) will return largest column value of each row.
             # second column on max result is index of where max element was
             # found, so we pick action with the larger expected reward.
-            features = state_to_features(game_state)
-            features_tensor = torch.from_numpy(features).float()
-            action = self.policy_net(features_tensor)
+        features = state_to_features(game_state)
+        features_tensor = torch.from_numpy(features).float()
+        action = self.policy_net(features_tensor)
+            # print(f"actions: {action}")
             # return ACTIONS[torch.argmax(action)]
-            chosen_action = choose_best_possible_action(self, game_state, action)
-            return chosen_action
+        chosen_action = choose_best_possible_action(self, game_state, action)
+        return chosen_action
     else:
+        # print(f"choosing random action")
         preferred_actions, discouraged_actions = get_valid_actions(self, game_state)
         v_actions = preferred_actions + discouraged_actions
         #print(f"rand: {v_actions[random.randrange(len(v_actions))]}")
@@ -149,28 +152,31 @@ def state_to_features(game_state: dict) -> np.array:
     field_shape = game_state["field"].shape
 
     # Create Hybrid Matrix with field shape x vector of size 5 to encode field state
-    hybrid_matrix = np.zeros(field_shape + (6,), dtype=np.double)
+    hybrid_matrix = np.zeros(field_shape + (2,), dtype=np.double)
 
     # Others
-    for _, _, _, (x, y) in game_state["others"]:
-        hybrid_matrix[x, y, 0] = 1
+    #for _, _, _, (x, y) in game_state["others"]:
+    #    hybrid_matrix[x, y, 0] = 1
 
     # Bombs
-    for (x, y), _ in game_state["bombs"]:
-        hybrid_matrix[x, y, 1] = 1
+    #for (x, y), _ in game_state["bombs"]:
+    #    hybrid_matrix[x, y, 1] = 1
 
     # Coins
     for (x, y) in game_state["coins"]:
-        hybrid_matrix[x, y, 2] = 1
-
+        hybrid_matrix[x, y, 0] = 1
+    #print("coins: ")
+    #print(hybrid_matrix[:, :, 0])
     # Crates
-    hybrid_matrix[:, :, 3] = np.where(game_state["field"] == 1, 1, 0)
+    #hybrid_matrix[:, :, 3] = np.where(game_state["field"] == 1, 1, 0)
 
     # Walls
-    hybrid_matrix[:, :, 4] = np.where(game_state["field"] == -1, 1, 0)
+    # hybrid_matrix[:, :, 4] = np.where(game_state["field"] == -1, 1, 0)
 
     # Position of user
     _, _, _, (x, y) = game_state["self"]
-    hybrid_matrix[x, y, 5] = 1
+    #print("pos")
+    hybrid_matrix[x, y, 1] = 1
+    #print(hybrid_matrix[:, :, 1])
 
     return hybrid_matrix.reshape(-1)
