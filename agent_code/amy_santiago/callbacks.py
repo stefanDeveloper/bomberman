@@ -88,14 +88,14 @@ def state_to_features(game_state: dict) -> np.array:
     field_shape = game_state["field"].shape
 
     # Create Hybrid Matrix with field shape x vector of size 5 to encode field state
-    hybrid_matrix = np.zeros(field_shape + (3,), dtype=np.double)
+    hybrid_matrix = np.zeros(field_shape + (2,), dtype=np.double)
 
     # Others
-    #for _, _, _, (x, y) in game_state["others"]:
+    # for _, _, _, (x, y) in game_state["others"]:
     #    hybrid_matrix[x, y, 0] = 1
 
     # Bombs
-    #for (x, y), _ in game_state["bombs"]:
+    # for (x, y), _ in game_state["bombs"]:
     #    hybrid_matrix[x, y, 1] = 1
 
     # Coins
@@ -103,13 +103,13 @@ def state_to_features(game_state: dict) -> np.array:
         hybrid_matrix[x, y, 0] = 1
 
     # Crates
-    #hybrid_matrix[:, :, 3] = np.where(game_state["field"] == 1, 1, 0)
+    # hybrid_matrix[:, :, 3] = np.where(game_state["field"] == 1, 1, 0)
 
     # Walls
-    hybrid_matrix[:, :, 1] = np.where(game_state["field"] == -1, 1, 0)
+    # hybrid_matrix[:, :, 1] = np.where(game_state["field"] == -1, 1, 0)
 
     # Position of user
     _, _, _, (x, y) = game_state["self"]
-    hybrid_matrix[x, y, 2] = 1
+    hybrid_matrix[x, y, 1] = 1
 
     return hybrid_matrix.reshape(-1)
