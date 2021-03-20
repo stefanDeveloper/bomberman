@@ -194,7 +194,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     q_next_states_max = torch.max(self.model.forward(training_next_states),
                                   dim=1)[0]
     q_target = training_rewards + self.model.gamma * q_next_states_max
-    #print(q_target)
+
     loss = self.model.loss(q_target, q_states_max)
     loss.backward()
     self.model.optimizer.step()
@@ -210,7 +210,6 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
 
     self.exploration_rate = self.exploration_rate * self.EPS_DEC if self.exploration_rate > \
                                                                     self.EPS_MIN else self.EPS_MIN
-    #print(self.exploration_rate)
     # Store the model
     with open("terry-jeffords-model.pt", "wb") as file:
         pickle.dump(self.model, file)
