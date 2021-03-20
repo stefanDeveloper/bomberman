@@ -22,13 +22,12 @@ Transition = namedtuple('Transition',
 # Hyper parameters -- DO modify
 TRANSITION_HISTORY_SIZE = 3  # keep only ... last transitions
 RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
-BATCH_SIZE = 127
+BATCH_SIZE = 128
 GAMMA = 0.999
 EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
-TARGET_UPDATE = 10
-ROUNDS = 1
+TARGET_UPDATE = 4
 
 # Events
 # Defined by ICEC 2019
@@ -63,9 +62,10 @@ def setup_training(self):
     self.visited_before = np.zeros((17, 17))
 
     self.steps_done = 0
+    self.rounds = 0
 
     self.optimizer = optim.RMSprop(self.policy_net.parameters())
-    self.memory = ReplayMemory(10000)
+    self.memory = ReplayMemory(100000)
 
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
@@ -149,26 +149,26 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
             if pos_current == (x, y - i):
                 is_getting_bombed = True
 
-    # if is_getting_bombed:
+    if is_getting_bombed:
         # events.append(DANGER_ZONE_BOMB)
-        # self.logger.debug(f'Add game event {DANGER_ZONE_BOMB} in step {new_game_state["step"]}')
+        self.logger.debug(f'Add game event {DANGER_ZONE_BOMB} in step {new_game_state["step"]}')
     # else:
-        # events.append(SAFE_CELL_BOMB)
-        # self.logger.debug(f'Add game event {SAFE_CELL_BOMB} in step {new_game_state["step"]}')
+    # events.append(SAFE_CELL_BOMB)
+    # self.logger.debug(f'Add game event {SAFE_CELL_BOMB} in step {new_game_state["step"]}')
 
-    # if self.visited_before[pos_current[0]][pos_current[1]] == 1:
-        # events.append(ALREADY_VISITED_EVENT)
-        # self.logger.debug(f'Add game event {ALREADY_VISITED_EVENT} in step {new_game_state["step"]}')
+    if self.visited_before[pos_current[0]][pos_current[1]] == 1:
+        events.append(ALREADY_VISITED_EVENT)
+        self.logger.debug(f'Add game event {ALREADY_VISITED_EVENT} in step {new_game_state["step"]}')
 
     self.visited_before = self.visited
-
-    self.visited = np.zeros((17, 17))
     self.visited[pos_current[0]][pos_current[1]] = 1
 
     if old_game_state is not None:
         self.memory.push(state_to_features(old_game_state), [ACTIONS.index(self_action)],
                          state_to_features(new_game_state),
                          reward_from_events(self, events))
+
+        optimize_model(self)
 
     # state_to_features is defined in callbacks.py
     self.transitions.append(
@@ -200,12 +200,12 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     with open("my-saved-model.pt", "wb") as file:
         pickle.dump(self.policy_net, file)
 
-    optimize_model(self)
-
     # Update the target network, copying all weights and biases in DQN
-    if ROUNDS % TARGET_UPDATE == 0:
+    if self.rounds % TARGET_UPDATE == 0:
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.steps_done = 0
+
+    self.rounds += 1
 
 
 def reward_from_events(self, events: List[str]) -> int:
@@ -215,27 +215,31 @@ def reward_from_events(self, events: List[str]) -> int:
     certain behavior.
     """
     game_rewards = {
-        e.COIN_COLLECTED: 1,
-        #e.KILLED_OPPONENT: 1,
-        e.KILLED_SELF: -500,
-        e.INVALID_ACTION: -500,
-        e.BOMB_DROPPED: -500,
-        #e.WAITED: -500,
-        #e.CRATE_DESTROYED: 0.1,
-        #ALREADY_VISITED_EVENT: -0.05,
-        #LAST_MAN_STANDING: 1,
-        #CLOSER_TO_ENEMY: 0.002,
-        #CLOSEST_TO_ENEMY: 0.1,
-        #FARTHER_TO_ENEMY: -0.002,
-        #DANGER_ZONE_BOMB: -0.000666,
-        #SAFE_CELL_BOMB: 0.002,
+        e.COIN_COLLECTED: 200,
+        e.KILLED_OPPONENT: 200,
+        e.CRATE_DESTROYED: 50,
+        e.KILLED_SELF: -45,
+        e.INVALID_ACTION: -5,
+        e.MOVED_UP: -1,
+        e.MOVED_DOWN: -1,
+        e.MOVED_LEFT: -1,
+        e.MOVED_RIGHT: -1,
+        e.BOMB_DROPPED: -1,
+        e.WAITED: -45,
+        ALREADY_VISITED_EVENT: -3,
+        # LAST_MAN_STANDING: 1,
+        # CLOSER_TO_ENEMY: 0.002,
+        # CLOSEST_TO_ENEMY: 0.1,
+        # FARTHER_TO_ENEMY: -0.002,
+        # DANGER_ZONE_BOMB: -0.000666,
+        # SAFE_CELL_BOMB: 0.002,
     }
     reward_sum = 0
     for event in events:
         if event in game_rewards:
             reward_sum += game_rewards[event]
     # Penalty per iteration
-    reward_sum -= 0.1
+    # reward_sum -= 100
 
     self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
 
@@ -243,7 +247,7 @@ def reward_from_events(self, events: List[str]) -> int:
 
 
 def optimize_model(self):
-    if len(self.memory) < 128:
+    if len(self.memory) < BATCH_SIZE + 1:
         return
 
     transitions = self.memory.sample(BATCH_SIZE)
@@ -264,12 +268,12 @@ def optimize_model(self):
 
     non_final_next_states = torch.cat([s for s in next_state_batch
                                        if s is not None])
+
     action_batch = torch.tensor(np.asarray(batch.action, dtype=np.int64))
     # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
     # columns of actions taken. These are the actions which would've been taken
     # for each batch state according to policy_net
     state_action_values = self.policy_net(state_batch).gather(1, action_batch)
-
     # Compute V(s_{t+1}) for all next states.
     # Expected values of actions for non_final_next_states are computed based
     # on the "older" target_net; selecting their best reward with max(1)[0].
@@ -277,6 +281,7 @@ def optimize_model(self):
     # state value or 0 in case the state was final.
     next_state_values = torch.zeros(BATCH_SIZE)
     next_state_values[non_final_mask] = self.target_net(non_final_next_states.reshape(-1, 867)).max(1)[0]
+
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
@@ -286,6 +291,6 @@ def optimize_model(self):
     # Optimize the model
     self.optimizer.zero_grad()
     loss.backward()
-    for param in self.policy_net.parameters():
-        param.grad.data.clamp_(-1, 1)
+    #for param in self.policy_net.parameters():
+    #    param.grad.data.clamp_(-1, 1)
     self.optimizer.step()

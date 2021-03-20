@@ -8,7 +8,7 @@ import torch
 
 EPS_START = 0.9
 EPS_END = 0.05
-EPS_DECAY = 200
+EPS_DECAY = 50
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
 
@@ -61,7 +61,7 @@ def act(self, game_state: dict) -> str:
                 action = self.policy_net(features_tensor)
                 return ACTIONS[torch.argmax(action)]
         else:
-            return ACTIONS[random.randrange(len(ACTIONS))]
+            return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
     else:
         features = state_to_features(game_state)
         features_tensor = torch.from_numpy(features).float()
