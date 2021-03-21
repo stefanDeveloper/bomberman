@@ -39,7 +39,7 @@ jobs:
         body:  Commit ${{ github.sha }} daily scheduled [CI run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) failed, please check why
         assignees: ''
   train-model:
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.9
