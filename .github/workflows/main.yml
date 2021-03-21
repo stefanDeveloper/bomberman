@@ -54,3 +54,8 @@ jobs:
     - name: Run Train
       run: |
         python -m main play --agents amy_santiago --train 1 --n-round 25 --no-gui
+    - name: Upload Model
+      uses: actions/upload-artifact@v2
+      with:
+        name: Model
+        path: agent_code/amy_santiago/my-saved-model.pt
