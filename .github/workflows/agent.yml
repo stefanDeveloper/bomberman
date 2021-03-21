@@ -34,4 +34,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Model
-        path: agent_code/amy_santiago/my-saved-model.pt
+        path: agent_code/${{ github.event.inputs.agent }}/my-saved-model.pt
