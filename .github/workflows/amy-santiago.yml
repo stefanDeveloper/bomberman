@@ -1,0 +1,28 @@
+name: Train Amy Santiago
+
+on:
+  workflow_dispatch
+        
+
+jobs:
+  train-model:
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    - name: Install PyTorch
+      run: |
+        python -m pip install --upgrade pip
+        pip install --pre torch torchvision -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
+        pip install -r requirements.txt
+    - name: Run Train
+      run: |
+        python -m main play --agents amy_santiago --train 1 --n-round 10000 --no-gui
+    - name: Upload Model
+      uses: actions/upload-artifact@v2
+      with:
+        name: Model
+        path: agent_code/amy_santiago/my-saved-model.pt
