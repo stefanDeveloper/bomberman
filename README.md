@@ -10,14 +10,20 @@
 
 # Tips & Tricks
 
+Setup environment:
+
+```python
+pip install -r requirements.txt
+```
+
 Train agent:
 
 ```python
-play --agents scully --train 1 --n-round 2500 --no-gui
+python -m main play --agents scully --train 1 --n-round 2500 --no-gui
 ```
 
 Play agent:
 
 ```python
-play --agents scully
+python -m main play --agents scully
 ```
