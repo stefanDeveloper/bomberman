@@ -2,11 +2,12 @@ name: Train Agent
 
 on:
   workflow_dispatch:
-    agent:
-      description: 'Name of agent, e.g. amy_santiago'
-      required: true
-      default: 'amy_santiago'
-    rounds:
+    inputs:
+      agent:
+        description: 'Name of agent, e.g. amy_santiago'
+        required: true
+        default: 'amy_santiago'
+      rounds:
         description: 'Rounds of training, e.g. 2500'
         required: true
         default: '2500'
