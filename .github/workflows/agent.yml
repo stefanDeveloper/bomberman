@@ -1,4 +1,4 @@
-name: Train Amy Santiago
+name: Train Agent
 
 on:
   workflow_dispatch:
