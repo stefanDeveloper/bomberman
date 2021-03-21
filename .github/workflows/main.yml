@@ -28,7 +28,7 @@ jobs:
         pip install --pre torch torchvision -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
         # Maybe use the CUDA 10.2 version instead?
         # pip install --pre torch torchvision -f https://download.pytorch.org/whl/nightly/cu102/torch_nightly.html
-	    pip install -r requirements.txt
+        pip install -r requirements.txt
     - name: Run Tests
       run: |
         python -m main play --agents amy_santiago --train 1 --n-round 25 --no-gui
