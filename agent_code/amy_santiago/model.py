@@ -1,29 +1,25 @@
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 
+
 class DQN(nn.Module):
-    gamma = 1.0
     learning_rate = 0.003
 
     def __init__(self, dim_in, dim_out):
         super(DQN, self).__init__()
         self.model_sequence = nn.Sequential(
-            nn.Linear(dim_in, 2048),
+            nn.Conv2d(in_channels=2, out_channels=1, kernel_size=(3, 3)),  # in_channels, out_channels, kernel size
+            nn.Flatten(start_dim=1),
+            nn.Linear(15 * 15, 128),  # def 2048, 512, 15*15 is image size after conv
             nn.ReLU(),
-            nn.Linear(2048, 512),
+            nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Linear(512, 128),
-            nn.ReLU(),
-            nn.Linear(128, 32),
+            nn.Linear(64, 32),
             nn.ReLU(),
             nn.Linear(32, dim_out),
+            nn.Softmax(dim=1)
         )
-        self.loss = nn.MSELoss()
-        self.optimizer = optim.Adam(self.parameters(), self.learning_rate)
-        # self.device = T.device('cuda:0' if T.cuda.is_available() else 'cuda:1')
-        # self.to(self.device)
 
     def forward(self, x):
-        logits = self.model_sequence(x)
+        logits = self.model_sequence(x.view(-1, 2, 17, 17))
         return logits
