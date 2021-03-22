@@ -1,0 +1,37 @@
+name: Train Agent against others
+
+on:
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'Name of agent, e.g. amy_santiago'
+        required: true
+        default: 'amy_santiago'
+      rounds:
+        description: 'Rounds of training, e.g. 2500'
+        required: true
+        default: '2500'
+        
+
+jobs:
+  train-model:
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    - name: Install PyTorch
+      run: |
+        python -m pip install --upgrade pip
+        pip install --pre torch torchvision -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
+        pip install -r requirements.txt
+    - name: Run Train
+      run: |
+        python -m main play --my-agent ${{ github.event.inputs.agent }} --train 1 --n-round ${{ github.event.inputs.rounds }} --no-gui
+    - name: Upload Model
+      uses: actions/upload-artifact@v2
+      with:
+        name: Model
+        path: agent_code/${{ github.event.inputs.agent }}/my-saved-model.pt
