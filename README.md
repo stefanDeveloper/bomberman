@@ -2,14 +2,14 @@
 
 > Setup for a project/competition amongst students to train a winning Reinforcement Learning agent for the classic game Bomberman.
 
-# Approaches
+## Approaches
 
 * [Terry Jeffords](agent_code/terry_jeffords/README.md) simple neural network approach
 * [Amy Santiago](agent_code/amy_santiago/README.md) is an agent, based on [Pytorch Example](https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html)
 * Rosa Diaz
 * Jake Peralta
 
-# Github Actions
+## Github Actions
 
 > Training agents can be annoying. To ease our work, we have integrated a Github Action to train our agents automatically. Sadly, my server does not have a graphic card, so we still use the CPU to train. Well, I ain't rich :D 
 
@@ -31,7 +31,7 @@ Troubleshooting occurred when we ran the latest image. However, in [this](https:
 Error: Version 3.9 with arch x64 not found
 ```
 
-# Tips & Tricks
+## Tips & Tricks
 
 Setup environment:
 

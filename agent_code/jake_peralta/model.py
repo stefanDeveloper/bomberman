@@ -1,37 +1,41 @@
-import math
+import torch.nn as nn
+import torch.optim as optim
+import torch as T
 
-import numpy as np
-from .features import state_to_features
+from agent_code.jake_peralta.features import state_to_features
 
-ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT']
-TRAINING_RATE = 0.001
-GAMMA = 0.8
-BATCH_SIZE = 100
+ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
 
 
-def get_action(model: dict, state: dict) -> str:
-    # Get Q value for actions
-    q_values = []
-    for action in ACTIONS:
-        feature = state_to_features(state, action)
-        q_values.append(feature * model["min_dist"])
+class DQN(nn.Module):
+    gamma = 0.9
+    learning_rate = 0.001
 
-    max_q_value = int(np.argmax(q_values))
-    return ACTIONS[max_q_value]
+    def __init__(self, dim_out):
+        super(DQN, self).__init__()
+        self.model_sequence = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(5 * 11 * 11, dim_out),
+        )
+        self.loss = nn.MSELoss()
+        self.optimizer = optim.Adam(self.parameters(), self.learning_rate)
+        self.device = T.device('cuda' if T.cuda.is_available() else 'cpu')
+        self.to(self.device)
 
+    def forward(self, x):
+        x = T.tensor(state_to_features(x)).float().view(-1, 5, 11, 11)  # batch_size, channels, img_dims
+        return self.model_sequence(x.to(self.device)).to('cpu')
 
-def train_step(self, old_state, action, new_state, reward):
-    q_values_new = []
-    for action in ACTIONS:
-        new_feature = state_to_features(new_state, action)
-        q_values_new.append(new_feature * self.model["min_dist"])
+    def train_step(self, old_state, action, new_state, reward):
+        if action is not None:
+            action_mask = T.zeros(len(ACTIONS), dtype=T.int64)
+            action_mask[ACTIONS.index(action)] = 1
 
-    max_q_value = np.max(q_values_new)
+            state_action_value = T.masked_select(self.forward(old_state), action_mask.bool())
+            next_state_action_value = self.forward(new_state).max().unsqueeze(0)
+            expected_state_action_value = (next_state_action_value * self.gamma) + reward
 
-    old_feature = state_to_features(old_state, action)
-    q_values_old = old_feature * self.model["min_dist"]
-
-    temporal_difference = reward + GAMMA * max_q_value - q_values_old
-    features = state_to_features(old_state, action)
-
-    self.model["min_dist"] += TRAINING_RATE * temporal_difference * features
+            loss = self.loss(state_action_value.to(self.device), expected_state_action_value.to(self.device))
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
