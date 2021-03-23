@@ -1,8 +1,7 @@
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
 import torch as T
-# from .callbacks import state_to_features # probably do this instead or change state_to_features to here
+import torch.nn as nn
+import torch.optim as optim
+
 from .StateToFeat import state_to_features
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
@@ -15,9 +14,9 @@ class DQN(nn.Module):
     def __init__(self, dim_out):
         super(DQN, self).__init__()
         self.model_sequence = nn.Sequential(
-            nn.Conv2d(3, 1, 3),  # inchannels, out_channels, kernel size
+            nn.Conv2d(3, 1, (3,3)),  # inchannels, out_channels, kernel size
             nn.Flatten(start_dim=1),
-            nn.Linear(15*15, 128),  # def 2048, 512, 15*15 is image size after conv
+            nn.Linear(15 * 15, 128),  # def 2048, 512, 15*15 is image size after conv
             nn.Softmax(dim=1),
             nn.Linear(128, 64),
             nn.Softmax(dim=1),
@@ -32,9 +31,7 @@ class DQN(nn.Module):
         self.to(self.device)
 
     def forward(self, x):
-        x = T.tensor(state_to_features(x)).float().view(-1, 3, 17, 17) # batch_size, channels, img_dims
-        # print("I got here")
-        # print(self.model_sequence(x))
+        x = T.tensor(state_to_features(x)).float().view(-1, 3, 17, 17)  # batch_size, channels, img_dims
         return self.model_sequence(x.to(self.device)).to('cpu')
 
     def train_step(self, old_state, action, new_state, reward):

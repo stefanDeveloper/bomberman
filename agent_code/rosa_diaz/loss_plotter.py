@@ -1,6 +1,6 @@
-#!usr/bin/python3
 import matplotlib.pyplot as plt
 import numpy as np
+
 
 def plot_loss(loss_list):
     t = np.arange(len(loss_list))
@@ -11,6 +11,7 @@ def plot_loss(loss_list):
     plt.ylabel("loss")
     plt.show()
 
+
 def plot_reward(reward_list):
     t = np.arange(len(reward_list))
     l = np.array(reward_list)
@@ -19,6 +20,7 @@ def plot_reward(reward_list):
     plt.xlabel("step")
     plt.ylabel("reward")
     plt.show()
+
 
 loss = np.loadtxt("loss_log.txt")
 reward = np.loadtxt("reward_log.txt")

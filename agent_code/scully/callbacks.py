@@ -1,11 +1,10 @@
 import os
 import pickle
 import random
-import torch as T
-from .model import DQN
-import numpy as np
-from .StateToFeat import state_to_features
 
+import numpy as np
+
+from .model import DQN
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
 
@@ -51,6 +50,5 @@ def act(self, game_state: dict) -> str:
         return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
     self.logger.debug("Querying model for action.")
     return np.random.choice(ACTIONS, p=self.model.forward(game_state)[0].detach().numpy())
-
 
 # Here was state_to_features

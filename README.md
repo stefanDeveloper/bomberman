@@ -6,8 +6,8 @@
 
 * [Terry Jeffords](agent_code/terry_jeffords/README.md) simple neural network approach
 * [Amy Santiago](agent_code/amy_santiago/README.md) is an agent, based on [Pytorch Example](https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html)
-* Rosa Diaz
-* Jake Peralta
+* [Rosa Diaz](agent_code/rosa_diaz/README.md)
+* [Jake Peralta](agent_code/jake_peralta/README.md)
 
 ## Github Actions
 

@@ -90,23 +90,9 @@ def state_to_features(game_state: dict) -> np.array:
     # Create Hybrid Matrix with field shape x vector of size 5 to encode field state
     hybrid_matrix = np.zeros(field_shape + (2,), dtype=np.double)
 
-    # Others
-    # for _, _, _, (x, y) in game_state["others"]:
-    #    hybrid_matrix[x, y, 0] = 1
-
-    # Bombs
-    # for (x, y), _ in game_state["bombs"]:
-    #    hybrid_matrix[x, y, 1] = 1
-
     # Coins
     for (x, y) in game_state["coins"]:
         hybrid_matrix[x, y, 0] = 1
-
-    # Crates
-    # hybrid_matrix[:, :, 3] = np.where(game_state["field"] == 1, 1, 0)
-
-    # Walls
-    # hybrid_matrix[:, :, 1] = np.where(game_state["field"] == -1, 1, 0)
 
     # Position of user
     _, _, _, (x, y) = game_state["self"]

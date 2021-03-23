@@ -1,11 +1,10 @@
 import pickle
-import random
 from collections import namedtuple, deque
 from typing import List
+
 import numpy as np
 
 import events as e
-
 # This is only an example!
 from agent_code.jake_peralta.features import state_to_features
 
