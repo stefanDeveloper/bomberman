@@ -21,32 +21,31 @@ def state_to_features(game_state: dict) -> np.array:
     # One-Hot encoding
     fx, fy = game_state["field"].shape
     # Create Hybrid Matrix with field shape x vector of size 5 to encode field state
-    hybrid_matrix = np.zeros((3, fx -2, fy - 2), dtype=np.double)
+    hybrid_matrix = np.zeros((5, fx -2, fy - 2), dtype=np.double)
 
     # Others
-    #for _, _, _, (x, y) in game_state["others"]:
-    #    hybrid_matrix[x, y, 0] = 1
+    for _, _, _, (x, y) in game_state["others"]:
+        hybrid_matrix[0, x - 1, y - 1] = 1
+    hybrid_matrix[0] = hybrid_matrix[0].T
 
     # Bombs
-    #for (x, y), _ in game_state["bombs"]:
-    #    hybrid_matrix[x, y, 1] = 1
+    for (x, y), countdown in game_state["bombs"]:
+       hybrid_matrix[1, x - 1, y - 1] = countdown
+    hybrid_matrix[1] = hybrid_matrix[1].T
 
     # Coins
     for (x, y) in game_state["coins"]:
-        hybrid_matrix[0, x - 1, y - 1] = 1
-    hybrid_matrix[0] = hybrid_matrix[0].T
-    #print("coins: ")
-    #print(hybrid_matrix[:, :, 0])
+        hybrid_matrix[2, x - 1, y - 1] = 1
+    hybrid_matrix[2] = hybrid_matrix[2].T
+
     # Crates
-    #hybrid_matrix[:, :, 3] = np.where(game_state["field"] == 1, 1, 0)
+    hybrid_matrix[3, :, :] = np.where(game_state["field"][1:-1, 1:-1] == 1, 1, 0)
 
     # Walls
-    hybrid_matrix[2, :, :] = np.where(game_state["field"][1:-1, 1:-1] == -1, 1, 0)
+    hybrid_matrix[4, :, :] = np.where(game_state["field"][1:-1, 1:-1] == -1, 1, 0)
 
     # Position of user
     _, _, _, (x, y) = game_state["self"]
-    hybrid_matrix[1, x - 1, y - 1] = 1
-    hybrid_matrix[1] = hybrid_matrix[1].T
 
     dx = 8 - x
     dy = 8 - y

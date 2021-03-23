@@ -45,7 +45,7 @@ def act(self, game_state: dict) -> str:
     :return: The action to take as a string.
     """
     # todo Exploration vs exploitation
-    self.random_prob -= ((.9 - .2) / 400*1000)
+    self.random_prob -= ((.9 - .2) / 400*25000)
     if self.train and  random.random() < self.random_prob:
         self.logger.debug("Choosing action purely at random.")
         # 80%: walk in any direction. 10% wait. 10% bomb.

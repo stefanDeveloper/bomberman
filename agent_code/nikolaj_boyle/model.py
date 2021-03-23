@@ -15,12 +15,8 @@ class DQN(nn.Module):
     def __init__(self, dim_out):
         super(DQN, self).__init__()
         self.model_sequence = nn.Sequential(
-            # nn.Conv2d(3, 16, kernel_size=3),
-            # nn.BatchNorm2d(16),
-            # nn.Conv2d(16, 32, kernel_size=3),
-            # nn.BatchNorm2d(32),
             nn.Flatten(),
-            nn.Linear(3*11*11, dim_out),
+            nn.Linear(5*11*11, dim_out),
         )
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters(), self.learning_rate)
@@ -28,7 +24,7 @@ class DQN(nn.Module):
         self.to(self.device)
 
     def forward(self, x):
-        x = T.tensor(state_to_features(x)).float().view(-1, 3, 11, 11) # batch_size, channels, img_dims
+        x = T.tensor(state_to_features(x)).float().view(-1, 5, 11, 11) # batch_size, channels, img_dims
         return self.model_sequence(x.to(self.device)).to('cpu')
 
     def train_step(self, old_state, action, new_state, reward):
