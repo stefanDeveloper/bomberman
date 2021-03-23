@@ -3,7 +3,10 @@ import pickle
 import random
 
 import numpy as np
+import torch
 
+import settings
+from agent_code.terry_jeffords.model import DQN
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
 
@@ -22,13 +25,13 @@ def setup(self):
 
     :param self: This object is passed to all callbacks and you can set arbitrary values.
     """
-    if self.train or not os.path.isfile("my-saved-model.pt"):
+    if self.train or not os.path.isfile("terry-jeffords-model.pt"):
         self.logger.info("Setting up model from scratch.")
-        weights = np.random.rand(len(ACTIONS))
-        self.model = weights / weights.sum()
+        self.model = DQN(1447, 6)
     else:
+        print("Is loading")
         self.logger.info("Loading model from saved state.")
-        with open("my-saved-model.pt", "rb") as file:
+        with open("terry-jeffords-model.pt", "rb") as file:
             self.model = pickle.load(file)
 
 
@@ -41,28 +44,81 @@ def act(self, game_state: dict) -> str:
     :param game_state: The dictionary that describes everything on the board.
     :return: The action to take as a string.
     """
-    # todo Exploration vs exploitation
-    random_prob = .1
-    if self.train and random.random() < random_prob:
+    # TODO Exploration vs exploitation
+    self.logger.info('Picking action according to rule set')
+
+    if self.train and random.random() < self.exploration_rate:
         self.logger.debug("Choosing action purely at random.")
+        self.logger.debug(f'Exploration rate: {self.exploration_rate}')
         # 80%: walk in any direction. 10% wait. 10% bomb.
         return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
 
     self.logger.debug("Querying model for action.")
-    return np.random.choice(ACTIONS, p=self.model)
+
+    features = state_to_features_hybrid(game_state)
+    features_tensor = torch.from_numpy(features).float()
+    predicted_reward = self.model.forward(features_tensor)
+    action = torch.argmax(predicted_reward)
+
+    self.logger.info(f'Selected action: {action}')
+
+    return ACTIONS[action]
 
 
-def state_to_features(game_state: dict) -> np.array:
+def state_to_features_hybrid(game_state: dict) -> np.array:
     """
     *This is not a required function, but an idea to structure your code.*
-
     Converts the game state to the input of your model, i.e.
     a feature vector.
-
     You can find out about the state of the game environment via game_state,
     which is a dictionary. Consult 'get_state_for_agent' in environment.py to see
     what it contains.
+    :param game_state:  A dictionary describing the current game board.
+    :return: np.array
+    """
 
+    # TODO Turn map to have same view of user, good idea?
+
+    # This is the dict before the game begins and after it ends
+    if game_state is None:
+        return None
+
+    field_shape = game_state["field"].shape
+
+    # Create Hybrid Matrix with field shape x vector of size 5 to encode field state
+    hybrid_matrix = np.zeros(field_shape + (5,), dtype=np.double)
+
+    # others
+    for i in game_state["others"]:
+        hybrid_matrix[i[3], 0] = 1
+
+    # bombs
+    for i in game_state["bombs"]:
+        hybrid_matrix[i[0], 1] = 1
+
+    # coins
+    for i in game_state["coins"]:
+        hybrid_matrix[i, 2] = 1
+
+    # crates
+    hybrid_matrix[:, :, 3] = np.where(game_state["field"] == 1, 1, 0)
+
+    # walls
+    hybrid_matrix[:, :, 4] = np.where(game_state["field"] == -1, 1, 0)
+
+    final_vector = np.append(hybrid_matrix.reshape(-1), (game_state["self"][3]))
+
+    return final_vector
+
+
+def state_to_features_icaart(game_state: dict) -> np.array:
+    """
+    *This is not a required function, but an idea to structure your code.*
+    Converts the game state to the input of your model, i.e.
+    a feature vector.
+    You can find out about the state of the game environment via game_state,
+    which is a dictionary. Consult 'get_state_for_agent' in environment.py to see
+    what it contains.
     :param game_state:  A dictionary describing the current game board.
     :return: np.array
     """
@@ -70,10 +126,43 @@ def state_to_features(game_state: dict) -> np.array:
     if game_state is None:
         return None
 
-    # For example, you could construct several channels of equal shape, ...
-    channels = []
-    channels.append(...)
-    # concatenate them as a feature tensor (they must have the same shape), ...
-    stacked_channels = np.stack(channels)
-    # and return them as a vector
-    return stacked_channels.reshape(-1)
+    field_shape = game_state["field"].shape
+
+    # Create Field Matrix with field shape
+    field_channel = np.zeros(field_shape)
+
+    # Empty cells = 1
+    field_channel = np.where(game_state["field"] == 0, 1, field_channel)
+
+    # Wall/Bomb cells = -1
+    field_channel = np.where(game_state["field"] == -1, -1, field_channel)
+    for i in game_state["bombs"]:
+        field_channel[i[0]] = -1
+
+    # others
+    others_channel = np.zeros(field_shape)
+    for i in game_state["others"]:
+        others_channel[i[3]] = 1
+
+    # self (only has one entry)
+    self_channel = np.zeros(field_shape)
+    self_channel[game_state["self"][3]] = 1
+
+    # coins
+    coins_channel = np.zeros(field_shape)
+    for i in game_state["coins"]:
+        coins_channel[i] = 1
+
+    # danger_channel
+    danger_channel = np.zeros(field_shape)
+    danger_channel = np.where(game_state["explosion_map"] > 0, settings.BOMB_TIMER / game_state["explosion_map"],
+                              danger_channel)
+
+    # Sum up
+    channels = [field_channel, self_channel, others_channel, danger_channel, coins_channel]
+
+    final_vector = np.stack(channels).reshape(-1)
+
+    print(f'Feature has shape of {final_vector.shape}')
+
+    return final_vector
