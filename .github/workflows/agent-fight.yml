@@ -16,6 +16,7 @@ on:
 jobs:
   train-model:
     runs-on: self-hosted
+    timeout-minutes: 1440
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.9
