@@ -1,4 +1,4 @@
-name: Train Agent
+name: Train to destroy crates
 
 on:
   workflow_dispatch:
@@ -15,6 +15,7 @@ on:
 
 jobs:
   train-model:
+    timeout-minutes: 1440
     runs-on: self-hosted
     steps:
     - uses: actions/checkout@v2

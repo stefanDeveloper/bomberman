@@ -1,4 +1,4 @@
-name: Train to against others
+name: Train to collect coins
 
 on:
   workflow_dispatch:
@@ -15,8 +15,8 @@ on:
 
 jobs:
   train-model:
-    runs-on: self-hosted
     timeout-minutes: 1440
+    runs-on: self-hosted
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.9
@@ -30,7 +30,7 @@ jobs:
         pip install -r requirements.txt
     - name: Run Train
       run: |
-        python -m main play --my-agent ${{ github.event.inputs.agent }} --train 1 --n-round ${{ github.event.inputs.rounds }} --no-gui
+        python -m main play --agents ${{ github.event.inputs.agent }} --train 1 --n-round ${{ github.event.inputs.rounds }} --no-gui
     - name: Upload Model
       uses: actions/upload-artifact@v2
       with:
