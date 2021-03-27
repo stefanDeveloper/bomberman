@@ -9,7 +9,7 @@
 * [Rosa Diaz](agent_code/rosa_diaz/README.md) agent with pre-selection of valid/invalid and preferred/discouraged actions
 * [Jake Peralta](agent_code/jake_peralta/README.md)
 * [Nikolaj Boyle](agent_code/nikolaj_boyle/README.md)
-* [Scully](agent_code/scully/README.md)
+* [Scully](agent_code/scully/README.md) agent with full sight but convolution layers in the network
 * [Blindfisch](agent_code/blindfisch/README.md) agent with restricted sight and convolution of input features
 * [Hitchcock](agent_code/hitchcock/README.md) imitates the rule based agent
 
