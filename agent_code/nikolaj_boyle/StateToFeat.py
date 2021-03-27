@@ -40,7 +40,7 @@ def state_to_features(game_state: dict) -> np.array:
 
     # Crates
     hybrid_matrix[3, :, :] = np.where(game_state["field"][1:-1, 1:-1] == 1, 1, 0)
-
+    hybrid_matrix[3, :, :] = hybrid_matrix[3, :, :].T
     # Walls
     hybrid_matrix[4, :, :] = np.where(game_state["field"][1:-1, 1:-1] == -1, 1, 0)
 
@@ -56,3 +56,4 @@ def state_to_features(game_state: dict) -> np.array:
     hybrid_matrix = hybrid_matrix[:, 2:-2, 2:-2]
     
     return hybrid_matrix  # return the map (batch_size, channels, height, width)
+    

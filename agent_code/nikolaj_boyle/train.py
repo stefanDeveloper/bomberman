@@ -33,6 +33,7 @@ def setup_training(self):
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
     self.visited = np.zeros((17, 17))
     self.visited_before = np.zeros((17, 17))
+    self.n_rounds = 0
 
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
@@ -85,6 +86,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
 
     self.visited = np.zeros((17, 17))
     self.visited_before = np.zeros((17, 17))
+    self.n_rounds += 1
 
     # Store the model
     with open("my-saved-model.pt", "wb") as file:

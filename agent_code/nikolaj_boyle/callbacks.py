@@ -24,7 +24,7 @@ def setup(self):
 
     :param self: This object is passed to all callbacks and you can set arbitrary values.
     """
-    self.random_prob = .8
+    self.random_prob = .9
     if self.train and not os.path.isfile("my-saved-model.pt"):
         self.logger.info("Setting up model from scratch.")
         print("Setting up model")
@@ -45,12 +45,13 @@ def act(self, game_state: dict) -> str:
     :return: The action to take as a string.
     """
     # todo Exploration vs exploitation
-    self.random_prob -= ((.9 - .2) / 400*25000)
-    if self.train and  random.random() < self.random_prob:
-        self.logger.debug("Choosing action purely at random.")
-        # 80%: walk in any direction. 10% wait. 10% bomb.
-        return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
-    self.logger.debug("Querying model for action.")
+    if self.train:
+        self.random_prob = (.9  - (.7 * (self.n_rounds / 500)))
+        if random.random() < self.random_prob:
+            self.logger.debug("Choosing action purely at random.")
+            # 80%: walk in any direction. 10% wait. 10% bomb.
+            return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
+        self.logger.debug("Querying model for action.")
     
     return ACTIONS[T.argmax(self.model.forward(game_state))]
 
