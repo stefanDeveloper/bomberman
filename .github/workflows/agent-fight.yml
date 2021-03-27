@@ -1,4 +1,4 @@
-name: Train Agent against others
+name: Train against others
 
 on:
   workflow_dispatch:
