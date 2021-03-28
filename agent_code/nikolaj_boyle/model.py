@@ -16,7 +16,7 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.model_sequence = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(5*11*11, dim_out),
+            nn.Linear(2*7*7, dim_out),
         )
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters(), self.learning_rate)
@@ -24,7 +24,7 @@ class DQN(nn.Module):
         self.to(self.device)
 
     def forward(self, x):
-        x = T.tensor(state_to_features(x)).float().view(-1, 5, 11, 11) # batch_size, channels, img_dims
+        x = T.tensor(state_to_features(x)).float().view(-1, 2, 7*7) # batch_size, channels, img_dims
         return self.model_sequence(x.to(self.device)).to('cpu')
 
     def train_step(self, old_state, action, new_state, reward):
@@ -37,6 +37,8 @@ class DQN(nn.Module):
             expected_state_action_value = (next_state_action_value * self.gamma) + reward
 
             loss = self.loss(state_action_value.to(self.device), expected_state_action_value.to(self.device))
+            with open("loss_log.txt", "a") as loss_log:
+                loss_log.write(str(loss.item()) + "\t")
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()

@@ -34,6 +34,7 @@ def setup_training(self):
     self.visited = np.zeros((17, 17))
     self.visited_before = np.zeros((17, 17))
     self.n_rounds = 0
+    self.coins_per_round = 0
 
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
@@ -58,6 +59,9 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     if self.visited_before[pos_current[0]][pos_current[1]] == 1:
         pass
         events.append(ALREADY_VISITED_EVENT)
+
+    if e.COIN_COLLECTED in events:
+        self.coins_per_round += 1
 
     self.visited_before = self.visited
 
@@ -86,7 +90,14 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
 
     self.visited = np.zeros((17, 17))
     self.visited_before = np.zeros((17, 17))
+    with open("coin_log.txt", "a") as reward_log:
+        reward_log.write(str(self.coins_per_round) + "\t")
+    self.coins_per_round = 0
     self.n_rounds += 1
+
+    random_prob = (.9  - (.9 * (self.n_rounds / 1000)))
+    with open("eps_log.txt", "a") as reward_log:
+        reward_log.write(str(random_prob) + "\t")
 
     # Store the model
     with open("my-saved-model.pt", "wb") as file:
@@ -118,4 +129,8 @@ def reward_from_events(self, events: List[str]) -> int:
         if event in game_rewards:
             reward_sum += game_rewards[event]
     self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
+    with open("event_log.txt", "a") as reward_log:
+        reward_log.write(str(events) + "\t")
+    with open("reward_log.txt", "a") as reward_log:
+        reward_log.write(str(reward_sum) + "\t")
     return reward_sum

@@ -21,28 +21,28 @@ def state_to_features(game_state: dict) -> np.array:
     # One-Hot encoding
     fx, fy = game_state["field"].shape
     # Create Hybrid Matrix with field shape x vector of size 5 to encode field state
-    hybrid_matrix = np.zeros((5, fx -2, fy - 2), dtype=np.double)
+    hybrid_matrix = np.zeros((2, fx -2, fy - 2), dtype=np.double)
 
     # Others
-    for _, _, _, (x, y) in game_state["others"]:
-        hybrid_matrix[0, x - 1, y - 1] = 1
-    hybrid_matrix[0] = hybrid_matrix[0].T
+    # for _, _, _, (x, y) in game_state["others"]:
+    #     hybrid_matrix[0, x - 1, y - 1] = 1
+    # hybrid_matrix[0] = hybrid_matrix[0].T
 
     # Bombs
-    for (x, y), countdown in game_state["bombs"]:
-       hybrid_matrix[1, x - 1, y - 1] = countdown
-    hybrid_matrix[1] = hybrid_matrix[1].T
+    # for (x, y), countdown in game_state["bombs"]:
+    #    hybrid_matrix[1, x - 1, y - 1] = countdown
+    # hybrid_matrix[1] = hybrid_matrix[1].T
 
     # Coins
     for (x, y) in game_state["coins"]:
-        hybrid_matrix[2, x - 1, y - 1] = 1
-    hybrid_matrix[2] = hybrid_matrix[2].T
+        hybrid_matrix[0, x - 1, y - 1] = 1
+    hybrid_matrix[0] = hybrid_matrix[0].T
 
     # Crates
-    hybrid_matrix[3, :, :] = np.where(game_state["field"][1:-1, 1:-1] == 1, 1, 0)
-    hybrid_matrix[3, :, :] = hybrid_matrix[3, :, :].T
+    #hybrid_matrix[3, :, :] = np.where(game_state["field"][1:-1, 1:-1] == 1, 1, 0)
+    #hybrid_matrix[3, :, :] = hybrid_matrix[3, :, :].T
     # Walls
-    hybrid_matrix[4, :, :] = np.where(game_state["field"][1:-1, 1:-1] == -1, 1, 0)
+    hybrid_matrix[1, :, :] = np.where(game_state["field"][1:-1, 1:-1] == -1, 1, 0)
 
     # Position of user
     _, _, _, (x, y) = game_state["self"]
@@ -53,7 +53,6 @@ def state_to_features(game_state: dict) -> np.array:
     for i in range(len(hybrid_matrix)):
         hybrid_matrix[i] = shift(input=hybrid_matrix[i], shift=(dy, dx), order=0)
 
-    hybrid_matrix = hybrid_matrix[:, 2:-2, 2:-2]
+    hybrid_matrix = hybrid_matrix[:, 4:-4, 4:-4]
     
     return hybrid_matrix  # return the map (batch_size, channels, height, width)
-    
