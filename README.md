@@ -6,12 +6,12 @@
 
 * [Terry Jeffords](agent_code/terry_jeffords/README.md) simple neural network approach
 * [Amy Santiago](agent_code/amy_santiago/README.md) is an agent, based on [Pytorch Example](https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html)
-* [Rosa Diaz](agent_code/rosa_diaz/README.md)
+* [Rosa Diaz](agent_code/rosa_diaz/README.md) agent with pre-selection of valid/invalid and preferred/discouraged actions
 * [Jake Peralta](agent_code/jake_peralta/README.md)
 * [Nikolaj Boyle](agent_code/nikolaj_boyle/README.md)
-* [Scully](agent_code/scully/README.md)
-* [Blindfisch](agent_code/blindfisch/README.md)
-* [Hitchcock](agent_code/hitchcock/README.md)
+* [Scully](agent_code/scully/README.md) agent with full sight but convolution layers in the network
+* [Blindfisch](agent_code/blindfisch/README.md) agent with restricted sight and convolution of input features
+* [Hitchcock](agent_code/hitchcock/README.md) imitates the rule based agent
 
 
 ## Github Actions
