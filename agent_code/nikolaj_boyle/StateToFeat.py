@@ -21,7 +21,7 @@ def state_to_features(game_state: dict) -> np.array:
     # One-Hot encoding
     fx, fy = game_state["field"].shape
     # Create Hybrid Matrix with field shape x vector of size 5 to encode field state
-    hybrid_matrix = np.zeros((2, fx -2, fy - 2), dtype=np.double)
+    hybrid_matrix = np.zeros((3, fx -2, fy - 2), dtype=np.double)
 
     # Others
     # for _, _, _, (x, y) in game_state["others"]:
@@ -39,8 +39,8 @@ def state_to_features(game_state: dict) -> np.array:
     hybrid_matrix[0] = hybrid_matrix[0].T
 
     # Crates
-    #hybrid_matrix[3, :, :] = np.where(game_state["field"][1:-1, 1:-1] == 1, 1, 0)
-    #hybrid_matrix[3, :, :] = hybrid_matrix[3, :, :].T
+    hybrid_matrix[3, :, :] = np.where(game_state["field"][1:-1, 1:-1] == 1, 1, 0)
+    hybrid_matrix[3, :, :] = hybrid_matrix[3, :, :].T
     # Walls
     hybrid_matrix[1, :, :] = np.where(game_state["field"][1:-1, 1:-1] == -1, 1, 0)
 
