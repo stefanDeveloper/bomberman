@@ -29,7 +29,8 @@ class DQN(nn.Module):
         )
         self.loss = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.parameters(), self.learning_rate)
-        self.device = T.device('cuda' if T.cuda.is_available() else 'cpu')
+        # self.device = T.device('cuda' if T.cuda.is_available() else 'cpu')
+        self.device = T.device('cpu')
         self.to(self.device)
 
     def forward(self, x):

@@ -11,6 +11,7 @@ def plot_loss_alt(loss_list, num_points=1000):
     plt.yscale("log")
     plt.xlabel("step")
     plt.ylabel("loss")
+    plt.tight_layout()
     plt.show()
 loss = np.loadtxt("loss_log.txt")
 print('NOTE: This only works if you have more than "num_points" datapoints.')
